@@ -1,0 +1,6 @@
+---
+title: Stephanie
+layout: client
+---
+
+*If you have heard the phrase a labor of love then Robin with Raining Graces Birth Services and Postpartum Recovery is a Doula of Love.  We were so apprehensive to hire a doula for our third delivery after having a not so great experience with a different doula for our second delivery. I was on the fence, but after our first initial consult with Robin we knew we wanted her apart of our birth team.  At my most most vulnerable during delivery she made me feel completely comfortable. Throughout the pregnancy she listened and was available for any concerns that we had. After an un-forseen complication required us to have a medical induction (definitely not the plan) Robin was ready at every turn to help us navigate that day. Let me tell you that she is the QUEEN of hip squeezes. It brought an immense amount of relief for my unmedicated natural birth. She also had fantastic recommendations to help aid in my labor. Her psychical touch for delivery is everything and more I could of asked for from my Doula while being completely respectful and conscious of my needs.  I cant recommend Robin enough, and look forward to having her apart of our future deliveries! You wont regret having her as an asset to you birth team.*

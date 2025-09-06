@@ -1,0 +1,6 @@
+---
+title: Megan
+layout: client
+---
+
+*Robin was my saving grace throughout my pregnancy and labor & delivery. I had some past mental trauma from our first son’s pregnancy and labor. She helped me process these emotions leading into the birth of our second son, helping me reframe my thoughts, and guiding me mentally/emotionally/physically to prepare my mind and body for our second birth. I truly could not have gotten through it all without her insight, wisdom, strength & calmness. She provided me so much support leading up to the birth of our son - helping me prepare mentally and physically. She came to the hospital with us two days before he arrived (false labor), and was there for the entire labor & delivery the day he arrived. Some things were out of our control and when I became anxious and felt like giving up, Robin was right there reminding me of my strength, providing me encouragement and calmness throughout the whole process. She stayed with us after he was born & has continued checking on us as a family throughout my postpartum journey - providing emotional support and processing through all the emotions. I could not recommend her enough! If the Lord blesses us with more babies we will for sure be using Robin again. Our family is forever grateful for you, Robin, and we love you so much!!*
