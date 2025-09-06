@@ -269,7 +269,6 @@ a.navbar-item.is-active {
     }
     .columns {
         .column {
-            border-radius: 0.5rem;
             .image {
                 background-position: center;
                 background-repeat: no-repeat;
@@ -286,12 +285,14 @@ a.navbar-item.is-active {
         transition: all 0.5s ease;
         margin-bottom: 0.5rem !important;
         display: inline-table;
+        border-radius: 0 !important;
         &:hover {
             transform: scale(0.975);
         }
     }
     .card {
         background-color: #000 !important;
+        border-radius: 0 !important;
         transition: all 0.25s ease;
         &:hover {
             background-color: rgba($color: #000000, $alpha: 0.90)!important;
@@ -305,6 +306,7 @@ a.navbar-item.is-active {
         background-color: #000 !important;
         padding: 0 !important;
         margin: 0 !important;
+        border-radius: 0 !important;
     }
 
     /* Ensure all client cards have the same dimensions */
@@ -323,17 +325,6 @@ a.navbar-item.is-active {
       flex: 1 1 auto;
     }
 
-    @media (min-width: 1024px) {
-        /* Remove rounded corners from the bottom row cards in desktop view */
-        #client .columns .column:nth-last-child(-n+3) {
-            border-radius: 0 !important;
-        }
-        /* Force bottom corners of cards in bottom row to be square */
-        #client .columns .column:nth-last-child(-n+3) .card {
-            border-bottom-left-radius: 0 !important;
-            border-bottom-right-radius: 0 !important;
-        }
-    }
 }
 
 #post {
