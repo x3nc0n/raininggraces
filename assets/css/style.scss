@@ -1,7 +1,40 @@
 ---
 ---
+/*
+    Copilot instructions:
+    This is a Jekyll website. Always keep the YAML front matter (---) at the very top of this file.
+    Never insert CSS or comments before the YAML front matter. Do not duplicate the YAML front matter.
+    Do not alter the first two lines of this file, ever. If you think you need to, you're wrong.
+*/
 
-@import "main.scss";
+
+@use "main" as *;
+// Ensure client card images with 'contain' fit are not cropped and are always visible
+
+.client-img-contain {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    aspect-ratio: 3 / 1;
+    width: 100%;
+    min-height: 80px;
+    max-height: 180px;
+    overflow: hidden;
+}
+.client-img-contain img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #fff;
+    position: static;
+}
+// Make page titles slightly smaller on small screens to prevent awkward wrapping
+@media (max-width: 480px) {
+    .title.is-1 {
+        font-size: 2rem;
+    }
+}
 
 #navbar {
     opacity: 0.95;
@@ -379,9 +412,10 @@ a.navbar-item.is-active {
         max-width: -webkit-fill-available;
     }
 
-    #disqus_thread {
-        margin-top: 5vmax;
-    }
+        /* Removed Disqus CSS */
+        /* #disqus_thread {
+            margin-top: 5vmax;
+        } */
 }
 
 #page-section {
@@ -390,4 +424,23 @@ a.navbar-item.is-active {
             display: inline-block;
         }
     }
+}
+
+// Ensure client card images with 'contain' fit are not cropped
+.client-img-contain {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    height: 0;
+    padding-bottom: 33.33%; /* 3:1 aspect ratio */
+    position: relative;
+}
+.client-img-contain img {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #fff;
 }

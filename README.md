@@ -15,7 +15,6 @@
 * CMS Admin Support using [Jekyll Admin](https://jekyll.github.io/jekyll-admin/)
 * Supports Latest [Jekyll 4.x](https://jekyllrb.com/) and [Bundler](https://bundler.io/)
 * Stylesheet built using SaSS
-* Comments using Disqus
 * Analytics using Google Analytics
 * Instant Search using [Simple Jekyll Search](https://github.com/christian-fei/Simple-Jekyll-Search/)
 

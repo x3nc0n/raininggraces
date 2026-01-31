@@ -1,0 +1,6 @@
+---
+title: Sydney
+layout: client
+---
+
+*Having Robin by my side during my birth was such an incredible blessing. She wasn’t even supposed to be my doula originally—she stepped in as a last-minute substitute when my planned doula couldn’t be there. We had never met before, but from the very first moment she walked into my hospital room, I felt an immediate sense of calm and reassurance. My birth did not go as smoothly as I had hoped, and I faced some unexpected complications. Through every single moment, Robin stayed right by my side. She was an anchor in the chaos, offering encouragement, physical support, and a steady, compassionate presence that helped me feel supported and cared for even when things got tough. What stands out to me most is how seamlessly she adapted to me, my partner, and the situation without any prior relationship or preparation. It honestly felt like she had been part of my birth team all along. I will forever be grateful for the strength, knowledge, and genuine kindness she brought to my birth experience. If you are considering a doula, I wholeheartedly recommend Robin. She is someone who will truly show up for you in every sense of the word!*

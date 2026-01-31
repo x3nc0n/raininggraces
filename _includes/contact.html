@@ -1,6 +1,11 @@
 <section class="hero is-fullheight has-text-centered" id="contact">
     <div class="hero-body">
         <div class="container">
+                    {% if site.contact-badge-image %}
+                    <div class="is-flex is-justify-content-center is-align-items-center" style="margin-bottom: 2rem;">
+                        <img src="{{ site.contact-badge-image | relative_url }}" alt="Contact Badge" style="max-width: 220px; width: 100%; height: auto; display: block; margin: 0 auto;" class="mb-4">
+                    </div>
+                    {% endif %}
             {% unless site.facebook_username == %}
             <a id="contact-button" href="https://m.me/{{site.facebook_username}}"
                 class="button is-rounded is-uppercase has-text-weight-normal is-black is-outlined has-text-weight-semibold column is-two-fifths"
