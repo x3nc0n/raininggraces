@@ -412,9 +412,10 @@ a.navbar-item.is-active {
         max-width: -webkit-fill-available;
     }
 
-    #disqus_thread {
-        margin-top: 5vmax;
-    }
+        /* Removed Disqus CSS */
+        /* #disqus_thread {
+            margin-top: 5vmax;
+        } */
 }
 
 #page-section {
