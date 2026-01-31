@@ -1,5 +1,11 @@
 ---
 ---
+// Make page titles slightly smaller on small screens to prevent awkward wrapping
+@media (max-width: 480px) {
+    .title.is-1 {
+        font-size: 2rem;
+    }
+}
 
 @import "main.scss";
 

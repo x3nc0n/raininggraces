@@ -6,7 +6,7 @@
         {{site.title}}
       </h1>
       <h3 class="subtitle has-text-white-bis is-uppercase has-text-weight-medium is-marginless">
-        {{site.description}}
+        {{ site.description | newline_to_br }}
       </h3>
       <hr>
       <a href="{{site.url}}{{site.baseurl}}/#about"
