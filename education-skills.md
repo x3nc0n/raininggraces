@@ -13,11 +13,11 @@ Spinning Babies Workshop
 
 
 #### Octoboer 2025
-Spinning Babies® Certified Parent Educator
+Spinning Babies® Certified Parent Educator - [Certificate](/assets/docs/RobinS_SpBCPE%20Certificate.pdf)
 
 <div style="text-align:center; margin: 1em 0;">
 	<img src="{{ site.contact-badge-image | relative_url }}" alt="Spinning Babies® Certified Parent Educator Badge" style="max-width:180px; width:100%; height:auto; display:inline-block;" />
 </div>
 
 #### November 2025
-Neonatal Resuscitation Certification
+[American Academy of Pediatrics Neonatal Resuscitation Certification](https://nrplearningplatform.com/about-aap) - [Certificate](/assets/docs/AAP%20NRP%20Certificate.pdf)
