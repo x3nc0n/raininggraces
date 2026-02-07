@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "From Patrol Car to Playroom to Birth Room: How My Journey Shaped the Doula I Am Today"
+post-image: "../assets/images/cop-to-doula.jpg"
 date: 2026-02-07
 ---
 
