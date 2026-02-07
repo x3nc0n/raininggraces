@@ -1,11 +1,12 @@
 ---
 title: Compassion at the Center
 layout: post
-post-image: "../assets/images/birth_bw_3.jpg"
-description: Why I Became a Birth Doula in Oklahoma City
+post-image: "../assets/images/birth_bw_2.jpg"
+description: How my journey shaped the doula I am today
 tags:
   - doula
-  - birth
+  - career
+  - seasons
   - blog
 ---
 
