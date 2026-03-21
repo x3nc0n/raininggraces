@@ -3,7 +3,7 @@ layout: post
 title: "Why “Head Down” Isn’t the Whole Story"
 author: Robin Spaid
 date: 2026-03-21
-post-image: "assets/images/Head-Down-blog.jpg"
+post-image: "../assets/images/Head-Down-blog.jpg"
 ---
 
 🌀 Why “Head Down” Isn’t the Whole Story
