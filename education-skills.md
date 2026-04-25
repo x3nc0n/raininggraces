@@ -12,7 +12,7 @@ Four Birth Shadows
 Spinning Babies Workshop
 
 
-#### Octoboer 2025
+#### October 2025
 Spinning Babies® Certified Parent Educator - [Certificate](/assets/docs/RobinS_SpBCPE%20Certificate.pdf)
 
 <div style="text-align:center; margin: 1em 0;">

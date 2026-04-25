@@ -1,52 +1,242 @@
-# WhatATheme
-**WhatATheme** is a customizable Jekyll Portfolio theme which supports blogging. You can use this theme in order to create an elegant, fully responsive portfolio.
+# Raining Graces Birth Services
 
-#### You can checkout the [**Demo Here**](https://thedevslot.github.io/WhatATheme/) :boom:
+Website for **Robin Spaid**, birth doula and Spinning Babies® Certified Parent Educator serving the OKC Metro area.
 
-![WhatATheme](assets/images/meta.jpg)
-
-# Features :sparkles:
-* Free and Easy setup
-* No Coding Required
-* Compatible with [Github Pages](https://pages.github.com/)
-* Responsive and Blogging Ready
-* HTML Compressor using [Jekyll Compress HTML](https://jch.penibelst.de/)
-* Minified CSS using SaSS
-* CMS Admin Support using [Jekyll Admin](https://jekyll.github.io/jekyll-admin/)
-* Supports Latest [Jekyll 4.x](https://jekyllrb.com/) and [Bundler](https://bundler.io/)
-* Stylesheet built using SaSS
-* Analytics using Google Analytics
-* Instant Search using [Simple Jekyll Search](https://github.com/christian-fei/Simple-Jekyll-Search/)
-
-# Installation :books:
-### System Requirements
-* [Ruby](https://www.ruby-lang.org/en/)
-* [Jekyll](https://jekyllrb.com/)
-> You can read **What is Jekyll** [**here**](https://thedevslot.github.io/WhatATheme/blog/what-is-jekyll-how-to-use-it)
-### Up and Running
-* Fork the [Repository](https://github.com/thedevslot/WhatATheme/)
-* Clone or download the repository into directory of your choice: `git clone https://github.com/thedevslot/WhatATheme.git`
-* Inside the directory run `bundle install`
-* Host WhatATheme locally by running `bundle exec jekyll s`
-
-> You can read **How to Install and use WhatATheme?** [**here**](https://thedevslot.github.io/WhatATheme/blog/how-to-install-whatatheme)
-
-[<img src="https://i.imgur.com/TVI946Z.png" width="250" />](https://youtu.be/VfPa2c9kwhQ)
+🌐 **Live site:** [https://www.raininggraces.com](https://www.raininggraces.com)
 
 ---
 
-### Content Credits :green_heart:
-* [Hero Image](https://images.pexels.com/photos/220444/pexels-photo-220444.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940) used as a background image in the very first section of Homepage.
-* [Author Image](https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png) used in the Author Section.
-* [Font Awesome](https://fontawesome.com/)
-* [Poppins Font](https://fonts.google.com/specimen/Poppins)
-* [Memphis Pattern](https://www.freepik.com/free-vector/memphis-pattern-background_4034913.htm#page=1&query=memphis%20pattern&position=23) used for some Social Media Images and the Favicon.
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| [Jekyll](https://jekyllrb.com/) | Static site generator |
+| [Bulma](https://bulma.io/) 0.8.2 | CSS framework (loaded via CDN) |
+| [Poppins](https://fonts.google.com/specimen/Poppins) | Body font (Google Fonts) |
+| [Font Awesome](https://fontawesome.com/) | Icons |
+| [Simple Jekyll Search](https://github.com/christian-fei/Simple-Jekyll-Search) | Blog search |
+| [jekyll-feed](https://github.com/jekyll/jekyll-feed) | RSS feed |
+| [jekyll-admin](https://jekyll.github.io/jekyll-admin/) | Local CMS UI |
+| GitHub Actions | CI/CD build & deploy |
+
+Based on the [WhatATheme](https://github.com/thedevslot/WhatATheme) theme (GNU GPLv2).
 
 ---
 
-### Credits :bulb:
-* [Sneha Omer](http://sassyecoder.github.io/)
-* [Harsh Trivedi](http://harsh98trivedi.github.io/)
+## Local Development
 
-### License
-The contents of this repository are licensed under the [**GNU General Public License v2.0**](https://github.com/thedevslot/WhatATheme/blob/master/LICENSE)
+### Prerequisites
+
+- Ruby (see `.ruby-version` for the exact version)
+- Bundler (`gem install bundler`)
+
+### Setup & Run
+
+```bash
+bundle install
+bundle exec jekyll serve
+```
+
+The site is served at `http://localhost:4000` by default.  
+The jekyll-admin CMS is available at `http://localhost:4000/admin`.
+
+To include future-dated posts (useful when writing ahead):
+
+```bash
+bundle exec jekyll serve --future
+```
+
+---
+
+## Repository Structure
+
+```
+.
+├── _config.yml          # All site-wide settings (title, bio, social, contact)
+├── _data/
+│   └── clients.yml      # Client testimonial list (name, image, link, description)
+├── _includes/           # Reusable HTML partials
+│   ├── navbar.html      # Top navigation bar
+│   ├── showcase.html    # Hero / homepage banner
+│   ├── about.html       # About section (pulls from _config.yml)
+│   ├── contact.html     # Contact section (social links + phone/email)
+│   ├── footer.html      # Footer
+│   ├── client-card.html # Card grid used on /clients page
+│   ├── blog-card.html   # Card used in blog listing
+│   ├── dropdown.html    # "MORE" navbar dropdown
+│   ├── head.html        # <head> tag (links CSS/fonts)
+│   ├── meta.html        # SEO & Open Graph meta tags
+│   ├── search.html      # Search input widget
+│   └── blogpage-heading.html # Blog page heading + search bar
+├── _layouts/
+│   ├── default.html     # Homepage (hero + about + contact)
+│   ├── page.html        # Generic info page
+│   ├── post.html        # Blog post
+│   ├── blog.html        # Blog listing page
+│   ├── client.html      # Individual client testimonial page
+│   ├── clients.html     # Client grid listing
+│   ├── 404.html         # 404 error page
+│   └── compress.html    # HTML minification wrapper
+├── _posts/              # Blog posts (filename: YYYY-MM-DD-title.md)
+├── _sass/
+│   └── main.scss        # Custom CSS overrides
+├── assets/
+│   ├── css/             # Compiled stylesheet output
+│   ├── docs/            # PDF certificates and documents
+│   ├── images/          # All site images
+│   └── js/              # JavaScript (simple-jekyll-search)
+├── client/              # Individual client testimonial pages (Markdown)
+├── index.md             # Homepage (uses `default` layout)
+├── blog.md              # Blog listing page
+├── clients.md           # Clients grid page
+├── what-is-a-birth-doula.md  # "What is a Birth Doula?" info page
+├── education-skills.md  # Education & certifications page
+├── search.json          # JSON index for blog search
+├── 404.md               # 404 page
+├── Gemfile              # Ruby dependencies
+└── .github/workflows/
+    └── jekyll.yml       # GitHub Actions build workflow
+```
+
+---
+
+## How to Update Common Content
+
+### Site-Wide Settings (`_config.yml`)
+
+All primary settings live here. After editing, restart `jekyll serve` to see changes.
+
+| Setting | Description |
+|---|---|
+| `title` | Site name shown in navbar and browser tab |
+| `description` | Subtitle shown on the hero banner |
+| `url` | Full production URL (no trailing slash) |
+| `email` | Contact email |
+| `phone` | Contact phone number (used in the contact section) |
+| `instagram_username` | Instagram handle |
+| `facebook_username` | Facebook Messenger ID for the "Message Me" button |
+| `facebook_page` | Facebook Page ID for the social icon link |
+| `author-name` | Doula's name |
+| `author-about` | Bio text (supports Markdown) |
+| `author-image` | Path to headshot image |
+| `heroimage` | Background image path for the homepage hero section |
+| `contact-badge-image` | Badge image shown in the contact section |
+| `google-analytics` | Google Analytics tracking ID (leave blank to disable) |
+| `site-keywords` | Comma-separated SEO keywords |
+
+---
+
+### Adding a Blog Post
+
+1. Create a new file in `_posts/` named `YYYY-MM-DD-your-post-title.md`.
+2. Add the front matter at the top:
+
+```yaml
+---
+layout: post
+title: "Your Post Title"
+post-image: "../assets/images/your-image.jpg"
+description: "A short one-line description"
+tags:
+  - doula
+  - blog
+---
+```
+
+3. Write the post content in Markdown below the front matter.
+4. Add the image file to `assets/images/` if it's a new image.
+
+> **Drafts:** Prefix the filename with `_` (e.g., `_2026-01-01-draft.md`) to prevent it from being published.
+
+---
+
+### Adding a Client Testimonial
+
+Client testimonials appear on the `/clients` page and individual testimonial pages.
+
+**Step 1 — Add the client image** to `assets/images/` (e.g., `jane-client.jpg`).
+
+**Step 2 — Add an entry to `_data/clients.yml`:**
+
+```yaml
+- name: Jane
+  image: /assets/images/jane-client.jpg
+  link: /client/jane
+  description: A short preview of the testimonial shown on the card...
+```
+
+For Spinning Babies class testimonials (no personal photo), use the logo with `fit: contain`:
+
+```yaml
+- name: Jane
+  image: /assets/images/Spinning-Babies-logo-red-transparent.png
+  link: /client/jane
+  fit: contain
+  description: My husband and I took a private Spinning Babies class with Robin...
+```
+
+**Step 3 — Create the testimonial page** at `client/jane.md`:
+
+```markdown
+---
+title: Jane
+layout: client
+---
+
+*Full testimonial text goes here.*
+```
+
+---
+
+### Updating the Navbar Dropdown ("MORE" menu)
+
+The dropdown is controlled in `_includes/dropdown.html`. It checks each page's URL against a hardcoded list. To add a page to the dropdown, add its URL to the `if` condition:
+
+```liquid
+{% if sitepage.url=='/what-is-a-birth-doula' or sitepage.url=='/clients' or sitepage.url=='/education-skills' or sitepage.url=='/your-new-page' %}
+```
+
+Make sure the new page has a `title` in its front matter.
+
+---
+
+### Adding / Updating Pages
+
+Static info pages (like `what-is-a-birth-doula.md`) use the `page` layout:
+
+```yaml
+---
+title: Page Title
+layout: page
+---
+
+Page content in Markdown here.
+```
+
+Place the file in the root of the repository. The page will be available at `/your-page-filename`.
+
+---
+
+### Adding Images or Documents
+
+- Images → `assets/images/`
+- PDFs / documents → `assets/docs/`
+- Reference them in Markdown with an absolute path: `/assets/images/filename.jpg`
+- Or in Liquid templates using: `{{ '/assets/images/filename.jpg' | relative_url }}`
+
+---
+
+## Deployment
+
+The site is built and deployed automatically via GitHub Actions (`.github/workflows/jekyll.yml`) on every push to the `master` branch.
+
+To manually trigger a build, push any commit to `master`.
+
+---
+
+## Known Issues & Notes
+
+- The `_includes/search.html` widget uses `id="search-input"`, but the blog layout's SimpleJekyllSearch config references `document.getElementById('search')`. The outer container div in `search.html` carries `id="search"`, so search works as expected.
+- Future-dated posts are included in the GitHub Actions build (`--future` flag is set). Remove that flag if you want future posts to be hidden until their date.
+- The jekyll-admin gem is pinned to `0.9.0` in the `Gemfile`. It is only used for local editing and is not included in the production build.
+

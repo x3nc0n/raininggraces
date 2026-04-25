@@ -2,7 +2,7 @@
     <div class="container">
         <!-- logo or branding image on left side -->
         <div class="navbar-brand">
-            <img src="https://github.com/x3nc0n/raininggraces/blob/master/assets/images/android-chrome-192x192.png?raw=true" alt="Raining Graces Logo" width="64" height="64">
+            <img src="{{ '/assets/images/android-chrome-192x192.png' | relative_url }}" alt="Raining Graces Logo" width="64" height="64">
             <a class="navbar-item"
                 href="{% if page.layout == 'default' %}{{site.url}}{{site.baseurl}}/#{% else %}{{site.url}}{{site.baseurl}}/{% endif %}">
                 <strong>{{site.title}}</strong>
