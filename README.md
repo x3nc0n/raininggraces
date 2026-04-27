@@ -234,6 +234,32 @@ To manually trigger a build, push any commit to `master`.
 
 ---
 
+## Testing
+
+The CI workflow runs two checks on every push and pull request:
+
+1. **Jekyll build** — fails if any Liquid template has a syntax error or a required front matter field is missing.
+2. **html-proofer** — scans the built `_site/` and fails on:
+   - Broken internal links (missing pages, typos in `href`)
+   - Missing images (`src` pointing to a file not in `assets/images/`)
+   - Invalid `<script src="...">` paths
+   - Structurally invalid HTML
+
+External link checking is disabled in CI (slow; fails on network errors). To run it locally, omit `--disable-external`.
+
+### Run tests locally
+
+```bash
+bundle exec jekyll build --future
+bundle exec htmlproofer ./_site \
+  --disable-external \
+  --no-enforce-https \
+  --ignore-urls "/feed.xml" \
+  --checks "Links,Images,Scripts"
+```
+
+---
+
 ## Known Issues & Notes
 
 - The `_includes/search.html` widget uses `id="search-input"`, but the blog layout's SimpleJekyllSearch config references `document.getElementById('search')`. The outer container div in `search.html` carries `id="search"`, so search works as expected.

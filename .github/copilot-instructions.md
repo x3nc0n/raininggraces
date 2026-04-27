@@ -133,6 +133,36 @@ Edit the `author-about` field in `_config.yml`. Supports Markdown. The `---` sep
 
 ---
 
+## Testing
+
+The CI workflow runs two checks on every push and pull request:
+
+1. **Jekyll build** (`bundle exec jekyll build --future`) — fails if Liquid templates have syntax errors or a required front matter field is missing.
+2. **html-proofer** — scans the built `_site/` directory and fails if:
+   - An internal link points to a page that doesn't exist (broken navigation, typos in `href`)
+   - An image `src` references a file that doesn't exist in `assets/images/`
+   - A `<script src="...">` points to a missing local file
+   - HTML is structurally invalid
+
+External link checking is disabled by default (it is slow and fails on transient network errors). To enable it locally:
+
+```bash
+bundle exec htmlproofer ./_site --checks "Links,Images,Scripts"
+```
+
+### Running tests locally
+
+```bash
+bundle exec jekyll build --future
+bundle exec htmlproofer ./_site \
+  --disable-external \
+  --no-enforce-https \
+  --ignore-urls "/feed.xml" \
+  --checks "Links,Images,Scripts"
+```
+
+---
+
 ## Things to Watch Out For
 
 - **`_config.yml` changes require a Jekyll restart** — hot-reload does not pick them up.
