@@ -12,9 +12,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build the site in the jekyll/builder container
+    - uses: actions/checkout@v4
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: .ruby-version
+        bundler-cache: true   # runs bundle install and caches gems
+
+    - name: Build Jekyll site
+      run: bundle exec jekyll build --future
+
+    - name: Check HTML (internal links & images)
       run: |
-        docker run \
-        -v ${{ github.workspace }}:/srv/jekyll -v ${{ github.workspace }}/_site:/srv/jekyll/_site \
-        jekyll/builder:latest /bin/bash -c "chmod -R 777 /srv/jekyll && jekyll build --future"
+        bundle exec htmlproofer ./_site \
+          --disable-external \
+          --no-enforce-https \
+          --ignore-urls "/feed.xml" \
+          --checks "Links,Images,Scripts"
