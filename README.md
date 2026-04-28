@@ -19,8 +19,6 @@ Website for **Robin Spaid**, birth doula and Spinning Babies® Certified Parent 
 | [jekyll-admin](https://jekyll.github.io/jekyll-admin/) | Local CMS UI |
 | GitHub Actions | CI/CD build & deploy |
 
-Based on the [WhatATheme](https://github.com/thedevslot/WhatATheme) theme (GNU GPLv2).
-
 ---
 
 ## Local Development
