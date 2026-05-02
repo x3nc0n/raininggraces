@@ -1,0 +1,7 @@
+[build]
+  publish = "_site"
+  command = "jekyll build --future"
+
+[build.environment]
+  NODE_VERSION = "22"
+  RUBY_VERSION = "3.2"
