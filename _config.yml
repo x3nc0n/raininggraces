@@ -95,6 +95,7 @@ defaults:
 
 # Exclude
 exclude:
+  - _planning/
   - .sass-cache/
   - .jekyll-cache/
   - gemfiles/
