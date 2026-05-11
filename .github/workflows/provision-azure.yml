@@ -1,0 +1,78 @@
+name: Provision Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group_name:
+        description: Resource group to create or update
+        required: true
+        default: rg-raininggraces
+      static_web_app_name:
+        description: Static Web App name
+        required: true
+        default: swa-raininggraces-main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Azure infrastructure
+        id: deploy
+        shell: bash
+        run: |
+          az deployment sub create \
+            --name "raininggraces-main-${{ github.run_id }}" \
+            --location southcentralus \
+            --template-file infra/main.bicep \
+            --parameters infra/main.bicepparam \
+            --parameters resourceGroupName="${{ inputs.resource_group_name }}" \
+                         staticWebAppName="${{ inputs.static_web_app_name }}" \
+                         staticWebAppRepositoryToken="${{ secrets.STATIC_WEB_APP_REPOSITORY_TOKEN }}" \
+            --query properties.outputs \
+            --output json > deployment-outputs.json
+
+          hostname="$(jq -r '.staticWebAppDefaultHostname.value // empty' deployment-outputs.json)"
+          api_token="$(jq -r '.staticWebAppApiToken.value // empty' deployment-outputs.json)"
+
+          if [ -n "$api_token" ]; then
+            echo "::add-mask::$api_token"
+          fi
+
+          {
+            echo "static_web_app_hostname=$hostname"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post provisioning summary
+        shell: bash
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## Azure provisioning complete
+
+          - Resource group: \`${{ inputs.resource_group_name }}\`
+          - Static Web App: \`${{ inputs.static_web_app_name }}\`
+          - Default hostname: https://${{ steps.deploy.outputs.static_web_app_hostname }}
+
+          ### Required follow-up
+
+          1. Set repository secret \`AZURE_STATIC_WEB_APPS_API_TOKEN\` using the deployment token from Azure Static Web Apps.
+          2. Keep using OIDC secrets \`AZURE_CLIENT_ID\`, \`AZURE_TENANT_ID\`, and \`AZURE_SUBSCRIPTION_ID\` for this provisioning workflow.
+
+          ### Optional repo-connection bootstrap
+
+          If you want Azure to record the GitHub repo connection at creation time, add the optional repository secret \`STATIC_WEB_APP_REPOSITORY_TOKEN\` before running this workflow.
+          EOF

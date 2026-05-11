@@ -230,6 +230,12 @@ The site is built and deployed automatically via GitHub Actions (`.github/workfl
 
 To manually trigger a build, push any commit to `master`.
 
+### Azure provisioning
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fx3nc0n%2Fraininggraces%2Fazure-migration%2Fazuredeploy.json)
+
+This repository now includes subscription-scoped Bicep in `infra/` plus `.github/workflows/provision-azure.yml` for CI/CD-based Azure provisioning. Configure GitHub OIDC secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) before running the workflow. After provisioning, add the SWA deployment token to the repository as `AZURE_STATIC_WEB_APPS_API_TOKEN` so `.github/workflows/azure-swa-deploy.yml` can publish the site.
+
 ---
 
 ## Testing
@@ -263,4 +269,3 @@ bundle exec htmlproofer ./_site \
 - The `_includes/search.html` widget uses `id="search-input"`, but the blog layout's SimpleJekyllSearch config references `document.getElementById('search')`. The outer container div in `search.html` carries `id="search"`, so search works as expected.
 - Future-dated posts are included in the GitHub Actions build (`--future` flag is set). Remove that flag if you want future posts to be hidden until their date.
 - The jekyll-admin gem is pinned to `0.9.0` in the `Gemfile`. It is only used for local editing and is not included in the production build.
-
