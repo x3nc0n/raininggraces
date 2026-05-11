@@ -52,4 +52,4 @@ output staticWebAppDefaultHostname string = staticSite.properties.defaultHostnam
 output staticWebAppId string = staticSite.id
 
 @secure()
-output staticWebAppApiToken string = list('${staticSite.id}/listSecrets', '2025-03-01').properties.apiKey
+output staticWebAppApiToken string = staticSite.listSecrets().properties.apiKey
