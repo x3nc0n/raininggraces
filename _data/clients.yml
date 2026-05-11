@@ -75,3 +75,11 @@
   link: /client/carly
   fit: contain
   description: My husband and I first worked with Robin through her Spinning Babies class. The information from that single class was incredibly helpful
+- name: Alex
+  image: /assets/images/alex-client.jpg
+  link: /client/alex
+  description: Robin was an absolutely amazing doula. She was necessary to have my best birth possible by helping me make educated decisions about my labor, helping through the actual labor, and answering all of our questions post partum.
+- name: Peyton
+  image: /assets/images/peyton2-client.jpg
+  link: /client/peyton2
+  description: We cannot say enough great things about Robin and everything she did to help up through my pregnancy! We had a semi rough pregnancy with some complications and Robin was by our side and supportive through the entire process.
