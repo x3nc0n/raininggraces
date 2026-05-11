@@ -16,3 +16,6 @@
 - **2026-05-10:** Photo app should be a separate repo (`raininggraces-photos`) — independent deployment from main site.
 - **2026-05-10:** Current site uses Netlify (netlify.toml in repo root). Build: `jekyll build --future`, publish dir: `_site`, Ruby 3.2/3.3.3, Node 22.
 - **2026-05-10:** Region choice: South Central US (closest to OKC). Storage: Standard LRS (cheapest, photos are temporary).
+- **2026-05-11T13:18:46.291-05:00:** The photo app's scheduled cleanup depends on GitHub repo variable `PUBLIC_APP_BASE_URL` in `raininggraces-photos/.github/workflows/cleanup-expired.yml`; without it, the cron job is not armed even if `CLEANUP_API_KEY` exists.
+- **2026-05-11T13:18:46.291-05:00:** Blob upload CORS for the photo app is defined in `raininggraces-photos/infra/modules/photo-platform.bicep` and currently allows only the SWA default hostname; custom-domain uploads require explicitly adding `https://photos.raininggraces.com`.
+- **2026-05-11T18:25:43Z (Scribe post-spawn):** Operations review findings archived to `decisions.md` (release gates decision). GitHub issue `x3nc0n/raininggraces-photos#12` created. Team dependencies: Inigo/Fezzik align custom-domain routes; Valerie fix IaC CORS + cleanup wiring; Vizzini re-run smoke tests. Release gate enforced — do not deploy to custom domain until both issues resolved.

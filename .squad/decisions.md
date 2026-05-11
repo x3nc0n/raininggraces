@@ -207,6 +207,70 @@ Created comprehensive test plan at `docs/test-plan.md` covering both workloads (
 
 ---
 
+### 2026-05-11T10:53:11.105-05:00: Normalize Azure Table entity keys in storage helper (Inigo)
+
+**Author:** Inigo
+
+`raininggraces-photos\api\helpers\storage.js` should treat Azure Table entity keys as mixed-case inputs:
+
+- SDK responses from `@azure/data-tables` v13 use `partitionKey` and `rowKey`
+- Locally constructed entities in this codebase still use `PartitionKey` and `RowKey` before persistence
+
+Normalization helpers must therefore read both forms when deriving `albumId` and `photoId`.
+
+**Why:** Album and photo IDs were being normalized as `undefined` after `listEntities()`/`getEntity()`, which broke upload and delete flows with false "Album not found" errors and silent delete failures.
+
+**Impact:**
+- `normalizeAlbumEntity()` and `normalizePhotoEntity()` need dual-case fallback logic
+- Delete flows that depend on normalized IDs work again without changing API routes
+- `confirmPhotoUploads()` remains compatible because SDK-fetched entities already carry camelCase keys for `updateEntity()`
+
+---
+
+### 2026-05-11T11:09:27.088-05:00: Upload confirm/CORS hardening (Inigo)
+
+**Author:** Inigo
+
+**Context:**
+- Admin photo uploads were stopping after the first saved photo.
+- Direct browser PUTs to Blob Storage use SAS URLs and require a successful CORS preflight.
+- `confirmPhotoUploads` was doing a full-table-entity replace using the raw Azure Data Tables SDK response from `getEntity()`.
+
+**Decision:**
+1. Blob Storage CORS must allow both `PUT` and `OPTIONS` for the photo app SWA origin.
+2. Photo confirmation updates should build an explicit replacement entity instead of spreading the raw SDK entity object.
+3. Password endpoint investigation found the Azure Function route bindings and SWA `/api/albums*` rule were already correct; legacy albums without `passwordPlain` should continue returning 404 from GET until reset writes a new plaintext password.
+
+**Why:**
+- Browsers send an `OPTIONS` preflight for cross-origin SAS PUT uploads, so allowing only `PUT` is insufficient.
+- Raw `getEntity()` responses can include SDK metadata that should not be sent back in a replace update.
+- Preserving the 404 behavior for older albums keeps the admin UI contract intact while allowing reset to repair old records.
+
+---
+
+### 2026-05-11T13:18:46.291-05:00: Photo app release gates (Westley)
+
+**Author:** Westley  
+**Topic:** Photo app release gates
+
+Treat two items as release-blocking for the live photo app on `photos.raininggraces.com`:
+
+1. **Blob Storage CORS must allow the custom domain,** not just the SWA default hostname.
+2. **The GitHub cleanup workflow must be fully wired** and manually validated end-to-end with `PUBLIC_APP_BASE_URL` set.
+
+**Why:** These are not polish items. They are core operational controls for the app's two promises: Robin can upload photos from the live hostname, and photos expire automatically after 30 days to keep costs contained.
+
+**Evidence:**
+- Live blob preflight from `https://photos.raininggraces.com` returns `403`, while the default SWA hostname returns `200`.
+- `raininggraces-photos/.github/workflows/cleanup-expired.yml` requires `PUBLIC_APP_BASE_URL`, and the repo currently has no GitHub variables configured.
+
+**Team Impact:**
+- **Inigo / Fezzik:** Keep upload/share flows aligned with the custom-domain path, not just the default hostname.
+- **Valerie:** Fix IaC + workflow configuration drift so reprovisioning preserves both CORS and cleanup wiring.
+- **Vizzini:** Re-run smoke tests on custom-domain upload and manual cleanup execution after fixes land.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
