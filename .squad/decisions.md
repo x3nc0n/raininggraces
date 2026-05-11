@@ -285,6 +285,28 @@ Treat two items as release-blocking for the live photo app on `photos.raininggra
 
 ---
 
+### 2026-05-11T17:35:34.210-05:00: Code Review Approval — PR #13 Security Hardening (Westley)
+
+**Author:** Westley (Lead)  
+**Branch:** `squad/security-hardening`  
+**Date:** 2026-05-11  
+**Verdict:** **APPROVE** ✅
+
+Complete security hardening review for PR #13 addressing issues #6–#10:
+- **#6 (HIGH):** Remove plaintext password storage — show-once model implemented correctly
+- **#7 (HIGH):** Move download password from URL to POST body — closes credential leakage
+- **#8 (MEDIUM):** Strip health endpoint — no info disclosure to unauthenticated callers
+- **#9 (MEDIUM):** Sanitize API error responses — no stack traces or config details leak
+- **#10 (LOW):** Scope workflow permissions to least-privilege
+
+Breaking changes are handled gracefully. No data migration needed (old `passwordPlain` fields degrade safely). Frontend/backend updated in lockstep. All edge cases analyzed and mitigated.
+
+**Blocking issues:** None. **Recommendation:** Merge after Vizzini validates with smoke tests.
+
+**Full review:** `.squad/decisions/inbox/westley-pr13-review.md` (merged into this entry)
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

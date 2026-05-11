@@ -5,6 +5,17 @@
 - **Stack:** Jekyll, Bulma 0.8.2, SCSS, GitHub Actions, Azure Static Web Apps, Azure Functions, Azure Blob Storage, Entra ID / MSAL
 - **Created:** 2026-05-10
 
+## Work Log
+
+### 2026-05-11T17:35:34.210-05:00: Client Testimonials Complete
+
+Added two client testimonials to the Jekyll site:
+- **Alex:** Entry in `_data/clients.yml`, full page at `client/alex.md`
+- **Peyton2:** Entry in `_data/clients.yml`, full page at `client/peyton2.md`
+
+Both follow established pattern. Jekyll build passed. Commits d712a30+ pushed to master.
+Status: ✅ Complete.
+
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
