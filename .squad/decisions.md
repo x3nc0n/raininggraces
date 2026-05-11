@@ -271,6 +271,20 @@ Treat two items as release-blocking for the live photo app on `photos.raininggra
 
 ---
 
+### 2026-05-11T14:34:36.488-05:00: Move retention cleanup from GitHub Actions to Azure Functions Timer (Valerie)
+
+**Decision:** Use a dedicated Azure Function App on the Consumption plan in `centralus` for the 30-day album retention schedule.
+
+- Keep the cleanup implementation dead simple by having the timer function call the existing authenticated SWA endpoint at `POST /api/cleanup` instead of duplicating storage deletion logic.
+- Reuse the existing `straininggraces` storage account for `AzureWebJobsStorage` and store only `CLEANUP_API_KEY` plus `CLEANUP_ENDPOINT` in the Function App.
+- Deploy the Function App on the latest supported Azure Functions Node.js runtime because Azure Functions no longer accepts Node.js 20 after its 2026-04-30 end-of-life date.
+
+**Why:** This keeps monthly cost effectively at zero for the schedule itself, removes GitHub Actions from the retention path, and avoids creating a second implementation of album/blob deletion logic. The SWA cleanup endpoint already encapsulates the production cleanup behavior, so the timer becomes a small, auditable scheduler with less code and less drift risk.
+
+**Status:** IMPLEMENTED. Created `func-raininggraces-cleanup` on Consumption plan (Node 24), deployed timer function, removed cleanup-expired.yml workflow, added function source under `functions/cleanup-timer/` in raininggraces-photos repo. Rotated cleanup API key. Verified running with successful live probe.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
