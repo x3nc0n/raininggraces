@@ -1,0 +1,11 @@
+using './main.bicep'
+
+param deploymentLocation = 'southcentralus'
+param location = 'southcentralus'
+param subscriptionId = '7e1b60b8-d616-4396-9de2-fc917930d02e'
+param tenantId = 'b9735550-cbce-4703-9c6e-e0e51de71a0d'
+param resourceGroupName = 'rg-raininggraces'
+param staticWebAppName = 'swa-raininggraces-main'
+param staticWebAppSkuName = 'Free'
+param staticWebAppRepositoryUrl = 'https://github.com/x3nc0n/raininggraces'
+param staticWebAppBranch = 'master'

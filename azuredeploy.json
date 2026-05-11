@@ -1,0 +1,253 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "8531366315291641775"
+    }
+  },
+  "parameters": {
+    "deploymentLocation": {
+      "type": "string",
+      "defaultValue": "southcentralus",
+      "metadata": {
+        "description": "Azure deployment location for the subscription-scoped deployment record."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "southcentralus",
+      "metadata": {
+        "description": "Azure region for shared resources."
+      }
+    },
+    "subscriptionId": {
+      "type": "string",
+      "defaultValue": "[subscription().subscriptionId]",
+      "metadata": {
+        "description": "Azure subscription identifier for tagging and documentation."
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "defaultValue": "[subscription().tenantId]",
+      "metadata": {
+        "description": "Azure tenant identifier for tagging and documentation."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-raininggraces",
+      "metadata": {
+        "description": "Resource group name."
+      }
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "defaultValue": "swa-raininggraces-main",
+      "metadata": {
+        "description": "Main site Static Web App name."
+      }
+    },
+    "staticWebAppSkuName": {
+      "type": "string",
+      "defaultValue": "Free",
+      "metadata": {
+        "description": "Static Web App SKU name."
+      }
+    },
+    "staticWebAppRepositoryUrl": {
+      "type": "string",
+      "defaultValue": "https://github.com/x3nc0n/raininggraces",
+      "metadata": {
+        "description": "GitHub repository URL for the main site."
+      }
+    },
+    "staticWebAppBranch": {
+      "type": "string",
+      "defaultValue": "master",
+      "metadata": {
+        "description": "GitHub branch connected to the main site deployment."
+      }
+    },
+    "staticWebAppRepositoryToken": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional GitHub token used by Azure when creating the Static Web App repository connection."
+      }
+    }
+  },
+  "variables": {
+    "commonTags": {
+      "application": "raininggraces",
+      "environment": "production",
+      "location": "[parameters('location')]",
+      "managedBy": "github-actions",
+      "repository": "x3nc0n/raininggraces",
+      "subscriptionId": "[parameters('subscriptionId')]",
+      "tenantId": "[parameters('tenantId')]",
+      "workload": "main-site"
+    }
+  },
+  "resources": {
+    "rg": {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2024-03-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('commonTags')]"
+    },
+    "mainSite": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('main-site-{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName'), parameters('staticWebAppName')))]",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "staticWebAppBranch": {
+            "value": "[parameters('staticWebAppBranch')]"
+          },
+          "staticWebAppName": {
+            "value": "[parameters('staticWebAppName')]"
+          },
+          "staticWebAppRepositoryToken": {
+            "value": "[parameters('staticWebAppRepositoryToken')]"
+          },
+          "staticWebAppRepositoryUrl": {
+            "value": "[parameters('staticWebAppRepositoryUrl')]"
+          },
+          "staticWebAppSkuName": {
+            "value": "[parameters('staticWebAppSkuName')]"
+          },
+          "tags": {
+            "value": "[variables('commonTags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "12636272791849212527"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region for the Static Web App."
+              }
+            },
+            "staticWebAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Main site Static Web App name."
+              }
+            },
+            "staticWebAppSkuName": {
+              "type": "string",
+              "defaultValue": "Free",
+              "metadata": {
+                "description": "Static Web App SKU name."
+              }
+            },
+            "staticWebAppRepositoryUrl": {
+              "type": "string",
+              "metadata": {
+                "description": "GitHub repository URL connected to the Static Web App."
+              }
+            },
+            "staticWebAppBranch": {
+              "type": "string",
+              "defaultValue": "master",
+              "metadata": {
+                "description": "GitHub branch connected to the Static Web App."
+              }
+            },
+            "staticWebAppRepositoryToken": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional GitHub token used by Azure when creating the repository connection."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "variables": {
+            "staticSiteProperties": "[union(createObject('allowConfigFileUpdates', true(), 'branch', parameters('staticWebAppBranch'), 'buildProperties', createObject('appLocation', '/', 'outputLocation', '_site', 'skipGithubActionWorkflowGeneration', true()), 'provider', 'GitHub', 'publicNetworkAccess', 'Enabled', 'repositoryUrl', parameters('staticWebAppRepositoryUrl'), 'stagingEnvironmentPolicy', 'Enabled'), if(empty(parameters('staticWebAppRepositoryToken')), createObject(), createObject('repositoryToken', parameters('staticWebAppRepositoryToken'))))]"
+          },
+          "resources": {
+            "staticSite": {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2025-03-01",
+              "name": "[parameters('staticWebAppName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('staticWebAppSkuName')]",
+                "tier": "[parameters('staticWebAppSkuName')]"
+              },
+              "tags": "[parameters('tags')]",
+              "properties": "[variables('staticSiteProperties')]"
+            }
+          },
+          "outputs": {
+            "staticWebAppDefaultHostname": {
+              "type": "string",
+              "value": "[reference('staticSite').defaultHostname]"
+            },
+            "staticWebAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))]"
+            },
+            "staticWebAppApiToken": {
+              "type": "securestring",
+              "value": "[list(format('{0}/listSecrets', resourceId('Microsoft.Web/staticSites', parameters('staticWebAppName'))), '2025-03-01').properties.apiKey]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "rg"
+      ]
+    }
+  },
+  "outputs": {
+    "deploymentLocation": {
+      "type": "string",
+      "value": "[parameters('deploymentLocation')]"
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "staticWebAppDefaultHostname": {
+      "type": "string",
+      "value": "[reference('mainSite').outputs.staticWebAppDefaultHostname.value]"
+    },
+    "staticWebAppId": {
+      "type": "string",
+      "value": "[reference('mainSite').outputs.staticWebAppId.value]"
+    },
+    "staticWebAppApiToken": {
+      "type": "securestring",
+      "value": "[listOutputsWithSecureValues('mainSite', '2025-04-01').staticWebAppApiToken]"
+    }
+  }
+}
