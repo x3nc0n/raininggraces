@@ -232,7 +232,7 @@ To manually trigger a build, push any commit to `master`.
 
 ### Azure provisioning
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fx3nc0n%2Fraininggraces%2Fazure-migration%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fx3nc0n%2Fraininggraces%2Fmaster%2Fazuredeploy.json)
 
 This repository now includes subscription-scoped Bicep in `infra/` plus `.github/workflows/provision-azure.yml` for CI/CD-based Azure provisioning. Configure GitHub OIDC secrets (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) before running the workflow. After provisioning, add the SWA deployment token to the repository as `AZURE_STATIC_WEB_APPS_API_TOKEN` so `.github/workflows/azure-swa-deploy.yml` can publish the site.
 
