@@ -109,6 +109,70 @@ The `azuredeploy.json` in `raininggraces-photos` was already committed (added in
 
 ---
 
+### 2026-05-11T11:15:42-05:00: `az staticwebapp users invite` Requires `--domain` Parameter (Valerie)
+
+**Author:** Valerie  
+**Severity:** Informational
+
+The `az staticwebapp users invite` command requires a `--domain` argument even though the SWA default hostname is deterministic. Without it, the command fails with "ERROR: the following arguments are required: --domain".
+
+**Resolution:** Always retrieve the hostname first, then pass it to the invite command:
+
+```bash
+DOMAIN=$(az staticwebapp show --name <name> --resource-group <rg> --query "defaultHostname" -o tsv)
+az staticwebapp users invite ... --domain "$DOMAIN"
+```
+
+**Impact:** Any future IaC or runbook that invites users to an SWA must include this lookup step.
+
+---
+
+### 2026-05-11: P0 Smoke Test Failures (Vizzini)
+
+**Author:** Vizzini (Tester)  
+**Severity:** Two failures — one Critical, one High  
+**Date:** 2026-05-11
+
+Ran live smoke tests against photo app deployment. 13/15 tests passed. Two failures identified:
+
+#### CRITICAL: /admin Serves HTML to Unauthenticated Users
+
+**Test:** GET /admin with no auth cookie  
+**Expected:** 302 redirect to `/.auth/login/aad` (or 401)  
+**Actual:** 200 OK — full admin dashboard HTML returned
+
+The SWA routing configuration in `staticwebapp.config.json` is not enforcing authentication on the `/admin` route. Any user who knows the URL gets the full dashboard HTML, including the create-album form, album list UI, and references to all API endpoints.
+
+**Fix Required:** Add auth requirement on the `/admin` route:
+```json
+{
+  "route": "/admin",
+  "allowedRoles": ["authenticated"]
+}
+```
+
+This causes SWA to redirect unauthenticated requests to `/.auth/login/aad` before serving any HTML.
+
+#### HIGH: Rate Limiting Not Triggering
+
+**Test:** 10 rapid POST requests to `/api/share/{token}/verify` with wrong password  
+**Expected:** First 5 return 404, 6th+ return 429  
+**Actual:** All 10 return 404 — 429 never observed
+
+**Probable Cause:** Rate limiter is in-memory counter per function instance. Azure Functions Consumption plan spins up multiple instances under load. Sequential requests may hit different instances, each with a fresh counter.
+
+**Risk:** Brute-force attack against share token can make unlimited password attempts.
+
+**Recommended fixes:**
+1. Use Azure Table Storage as persistent rate-limit counter (cross-instance)
+2. Use Azure Cache for Redis (adds cost)
+3. Rely on SWA's built-in per-route rate limiting if available
+4. Document limitation and accept risk given low-value content
+
+**Team Note:** Architectural decision needed (Inigo/Westley). Option 1 (Table Storage counter) is straightforward.
+
+---
+
 ### 2026-05-10: Test Plan Complete (Vizzini)
 
 **Author:** Vizzini (Tester)  

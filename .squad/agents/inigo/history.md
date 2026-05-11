@@ -10,3 +10,4 @@
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
 - **2026-05-10:** Architecture document available at `docs/architecture.md`. Main site migration (Jekyll → SWA) is independent implementation track from photo app. Read architecture doc before starting work.
+- **2026-05-11 (post-deploy):** P0 smoke test results: 13/15 passed. Two failures requiring fixes: (1) CRITICAL — /admin route not protected in `staticwebapp.config.json` (add `"allowedRoles": ["authenticated"]`); (2) HIGH — rate-limiting not persisting across Function instances (design persistent counter in Azure Table Storage). Both fixes needed before smoke tests pass. See `.squad/decisions.md` for detailed test results and recommended solutions.
