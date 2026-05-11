@@ -12,14 +12,14 @@
   "parameters": {
     "deploymentLocation": {
       "type": "string",
-      "defaultValue": "southcentralus",
+      "defaultValue": "centralus",
       "metadata": {
         "description": "Azure deployment location for the subscription-scoped deployment record."
       }
     },
     "location": {
       "type": "string",
-      "defaultValue": "southcentralus",
+      "defaultValue": "centralus",
       "metadata": {
         "description": "Azure region for shared resources."
       }

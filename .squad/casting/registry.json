@@ -1,0 +1,44 @@
+{
+  "agents": {
+    "westley": {
+      "persistent_name": "Westley",
+      "universe": "The Princess Bride",
+      "role": "Lead",
+      "created_at": "2026-05-10T10:44:36-05:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "fezzik": {
+      "persistent_name": "Fezzik",
+      "universe": "The Princess Bride",
+      "role": "Frontend Dev",
+      "created_at": "2026-05-10T10:44:36-05:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "inigo": {
+      "persistent_name": "Inigo",
+      "universe": "The Princess Bride",
+      "role": "Backend Dev",
+      "created_at": "2026-05-10T10:44:36-05:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "valerie": {
+      "persistent_name": "Valerie",
+      "universe": "The Princess Bride",
+      "role": "DevOps",
+      "created_at": "2026-05-10T10:44:36-05:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "vizzini": {
+      "persistent_name": "Vizzini",
+      "universe": "The Princess Bride",
+      "role": "Tester",
+      "created_at": "2026-05-10T10:44:36-05:00",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

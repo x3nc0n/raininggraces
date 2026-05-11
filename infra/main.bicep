@@ -1,10 +1,10 @@
 targetScope = 'subscription'
 
 @description('Azure deployment location for the subscription-scoped deployment record.')
-param deploymentLocation string = 'southcentralus'
+param deploymentLocation string = 'centralus'
 
 @description('Azure region for shared resources.')
-param location string = 'southcentralus'
+param location string = 'centralus'
 
 @description('Azure subscription identifier for tagging and documentation.')
 param subscriptionId string = subscription().subscriptionId
