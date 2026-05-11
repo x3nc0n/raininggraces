@@ -102,3 +102,41 @@ Both jobs continue to work as expected:
 
 **Reference:** Commits c5d7312 (Inigo), ef8d6f1 (Inigo), ab39ccd (Valerie)  
 **Branch:** squad/security-hardening
+
+---
+
+## Health Endpoint Hardening & API Error Sanitization
+
+**Author:** Inigo  
+**Date:** 2026-05-11T15:12:15-05:00  
+**Closes:** Issues #8 and #9 (MEDIUM security)  
+**Branch:** squad/security-hardening
+
+### Issue #8 — Health endpoint stripped to minimal signal
+
+`/api/health` previously returned:
+- `storageConnectionStringConfigured` (bool) — reveals infrastructure state
+- `error.message` from `ensureStorageReady()` — leaks internal exception text
+
+**Decision:** Keep the endpoint anonymous (uptime monitoring compatible) but return **only**:
+- `{ "status": "ok" }` — 200
+- `{ "status": "error" }` — 503
+
+Full diagnostics (missing env var, storage exception text) are logged server-side via `context.log.error`.
+
+### Issue #9 — Generic client-safe error messages everywhere
+
+Three sources of internal leakage fixed:
+
+| File | Before | After |
+|---|---|---|
+| `api/helpers/auth.js` `wrapHandler` | `error?.message` in 500 response | `'Internal server error.'` always |
+| `api/helpers/storage.js` `confirmPhotoUploads` | `error.message` per failed photo | `'Upload confirmation failed.'`; real cause logged with `photoId` |
+| `api/cleanup-run/index.js` | 500 + config disclosure when `CLEANUP_API_KEY` missing | 401 `'Unauthorized.'` for both missing and wrong key; missing-key case logged server-side |
+
+**Rule going forward:** Any new API path that catches an exception must log the full error via `context.log.error` or `console.error` and return a static, generic string to the client. Never interpolate `error.message` into a response body.
+
+---
+
+**Reference:** Commits ac9f8ee (Inigo), e4ac1b7 (Inigo)  
+**Branch:** squad/security-hardening
