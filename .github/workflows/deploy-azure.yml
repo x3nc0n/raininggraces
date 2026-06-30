@@ -188,11 +188,20 @@ jobs:
 
             # Trigger validation via the dedicated /validate endpoint (not re-PUT)
             echo "  Triggering validation..."
-            val_http=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            val_body=$(curl -s -X POST \
               "${API}/customDomains/${domain}/validate${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data '{"properties":{"validationMethod":"dns-txt-token"}}')
-            echo "  /validate POST returned HTTP ${val_http}"
+              --data '{"properties":{"validationMethod":"dns-txt-token"}}' \
+              -w "\nHTTP:%{http_code}")
+            val_http=$(echo "$val_body" | tail -1 | cut -d: -f2)
+            val_resp=$(echo "$val_body" | head -1)
+            echo "  /validate HTTP ${val_http}: ${val_resp:-OK}"
+
+            # Also dump full domain state immediately after
+            sleep 5
+            domain_state=$(curl -s "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}")
+            echo "  Post-validate state: $(echo "$domain_state" | jq -c '.properties | {status,validationToken,errorMessage}')"
           }
 
           register_domain "raininggraces.com"
