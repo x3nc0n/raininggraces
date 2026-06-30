@@ -172,8 +172,8 @@ jobs:
 
           # Poll for final Ready status (Azure validates async after we re-PUT)
           echo ""
-          echo "Polling Azure for domain validation status (up to 5 min)..."
-          deadline=$(( $(date +%s) + 300 ))
+          echo "Polling Azure for domain validation status (up to 10 min)..."
+          deadline=$(( $(date +%s) + 600 ))
           while true; do
             apex_st=$(curl -s "${API}/customDomains/raininggraces.com${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // "unknown"')
