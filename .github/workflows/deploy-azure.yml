@@ -57,9 +57,40 @@ jobs:
           echo "SWA hostname: $hostname"
 
       - name: Register custom domains on Azure SWA
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          SWA_HOSTNAME: ${{ steps.swa.outputs.hostname }}
         shell: bash
         run: |
           set -euo pipefail
+
+          # Helper: set proxy state on a CNAME record
+          set_proxy() {
+            local record_name="$1"
+            local proxied="$2"
+            response=$(curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${record_name}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+            record_id=$(echo "$response" | jq -r '.result[0].id // empty')
+            record_type=$(echo "$response" | jq -r '.result[0].type // "CNAME"')
+            record_content=$(echo "$response" | jq -r '.result[0].content // empty')
+            [ -z "$record_id" ] && echo "  (no record found for ${record_name}, skipping)" && return
+            curl -s -X PUT \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"type\":\"${record_type}\",\"name\":\"${record_name}\",\"content\":\"${record_content}\",\"proxied\":${proxied},\"ttl\":1}" \
+              | jq -r '"  proxy=\(.result.proxied) for \(.result.name)"'
+          }
+
+          echo "=== Step 1: Disabling Cloudflare proxy so Azure can validate CNAMEs ==="
+          set_proxy "raininggraces.com"     "false"
+          set_proxy "www.raininggraces.com" "false"
+
+          echo "Waiting 20s for DNS propagation..."
+          sleep 20
+
+          echo "=== Step 2: Registering custom domains on Azure SWA ==="
           for domain in raininggraces.com www.raininggraces.com; do
             existing=$(az staticwebapp hostname list \
               --name swa-raininggraces-main \
@@ -67,17 +98,20 @@ jobs:
               --query "[?name=='${domain}'].name" \
               --output tsv 2>/dev/null || true)
             if [ -z "$existing" ]; then
-              echo "Adding custom domain: ${domain}"
+              echo "Registering ${domain}..."
               az staticwebapp hostname set \
                 --name swa-raininggraces-main \
                 --resource-group rg-raininggraces \
-                --hostname "${domain}" \
-                --no-wait
-              echo "  ✅ Registered ${domain} (validation may take a few minutes)"
+                --hostname "${domain}" || echo "  ⚠️ ${domain} registration failed (may need retry if cert not ready)"
             else
               echo "  ✅ ${domain} already registered"
             fi
           done
+
+          echo "=== Step 3: Re-enabling Cloudflare proxy ==="
+          set_proxy "raininggraces.com"     "true"
+          set_proxy "www.raininggraces.com" "true"
+          echo "✅ Proxy re-enabled"
 
       - name: Set Cloudflare SSL mode to Full
         env:
