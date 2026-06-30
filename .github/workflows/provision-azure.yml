@@ -57,6 +57,56 @@ jobs:
             echo "static_web_app_hostname=$hostname"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Update Cloudflare DNS → Azure
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          SWA_HOSTNAME: ${{ steps.deploy.outputs.static_web_app_hostname }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upsert_cname() {
+            local record_name="$1"
+            local content="$2"
+
+            response=$(curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&name=${record_name}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json")
+
+            record_id=$(echo "$response" | jq -r '.result[0].id // empty')
+
+            payload=$(jq -n \
+              --arg type "CNAME" \
+              --arg name "$record_name" \
+              --arg content "$content" \
+              --argjson proxied true \
+              --argjson ttl 1 \
+              '{type: $type, name: $name, content: $content, proxied: $proxied, ttl: $ttl}')
+
+            if [ -n "$record_id" ]; then
+              echo "Updating existing CNAME ${record_name} → ${content}"
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+            else
+              echo "Creating new CNAME ${record_name} → ${content}"
+              curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+            fi
+          }
+
+          upsert_cname "raininggraces.com"     "$SWA_HOSTNAME"
+          upsert_cname "www.raininggraces.com" "$SWA_HOSTNAME"
+
+          echo "✅ DNS updated: raininggraces.com + www → $SWA_HOSTNAME"
+
       - name: Post provisioning summary
         shell: bash
         run: |
@@ -66,6 +116,12 @@ jobs:
           - Resource group: \`${{ inputs.resource_group_name }}\`
           - Static Web App: \`${{ inputs.static_web_app_name }}\`
           - Default hostname: https://${{ steps.deploy.outputs.static_web_app_hostname }}
+
+          ### DNS
+
+          Cloudflare CNAME records updated:
+          - \`raininggraces.com\` → \`${{ steps.deploy.outputs.static_web_app_hostname }}\`
+          - \`www.raininggraces.com\` → \`${{ steps.deploy.outputs.static_web_app_hostname }}\`
 
           ### Required follow-up
 

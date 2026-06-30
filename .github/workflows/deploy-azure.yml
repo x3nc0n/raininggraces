@@ -1,10 +1,14 @@
-name: Deploy main site to Azure Static Web Apps
+name: Deploy to Azure Static Web Apps + Update DNS
 
 on:
   push:
     branches:
       - master
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -32,3 +36,74 @@ jobs:
           app_location: _site
           output_location: ""
           skip_app_build: true
+
+      # OIDC login is needed only for the hostname lookup below.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get SWA default hostname
+        id: swa
+        run: |
+          hostname=$(az staticwebapp show \
+            --name swa-raininggraces-main \
+            --resource-group rg-raininggraces \
+            --query defaultHostname \
+            --output tsv)
+          echo "hostname=$hostname" >> "$GITHUB_OUTPUT"
+          echo "SWA hostname: $hostname"
+
+      - name: Update Cloudflare DNS → Azure
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          SWA_HOSTNAME: ${{ steps.swa.outputs.hostname }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Upsert a CNAME record: update if it exists, create if it doesn't.
+          upsert_cname() {
+            local record_name="$1"
+            local content="$2"
+
+            response=$(curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&name=${record_name}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json")
+
+            record_id=$(echo "$response" | jq -r '.result[0].id // empty')
+
+            payload=$(jq -n \
+              --arg type "CNAME" \
+              --arg name "$record_name" \
+              --arg content "$content" \
+              --argjson proxied true \
+              --argjson ttl 1 \
+              '{type: $type, name: $name, content: $content, proxied: $proxied, ttl: $ttl}')
+
+            if [ -n "$record_id" ]; then
+              echo "Updating existing CNAME ${record_name} → ${content}"
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+            else
+              echo "Creating new CNAME ${record_name} → ${content}"
+              curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+            fi
+          }
+
+          # Apex domain — Cloudflare flattens CNAME at root automatically.
+          upsert_cname "raininggraces.com"     "$SWA_HOSTNAME"
+          upsert_cname "www.raininggraces.com" "$SWA_HOSTNAME"
+
+          echo "✅ DNS updated: raininggraces.com + www → $SWA_HOSTNAME"
