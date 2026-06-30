@@ -182,6 +182,17 @@ jobs:
 
             # Set asuid TXT record
             upsert_txt "asuid.${domain}" "$val_token"
+
+            echo "  Waiting 30s for TXT propagation..."
+            sleep 30
+
+            # Trigger validation via the dedicated /validate endpoint (not re-PUT)
+            echo "  Triggering validation..."
+            val_http=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              "${API}/customDomains/${domain}/validate${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+              --data '{"properties":{"validationMethod":"dns-txt-token"}}')
+            echo "  /validate POST returned HTTP ${val_http}"
           }
 
           register_domain "raininggraces.com"
