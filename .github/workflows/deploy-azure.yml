@@ -82,7 +82,20 @@ jobs:
           fi
           echo "✅ Token verified: $(echo "$verify" | jq -r '.result.status')"
 
-          # Upsert a CNAME record: update if it exists, create if it doesn't.
+          # Confirm token can read the target zone (catches wrong Zone ID or missing Zone:Read).
+          echo "Checking zone access..."
+          zone_check=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json")
+          if [ "$(echo "$zone_check" | jq -r '.success')" != "true" ]; then
+            echo "❌ Cannot read zone ${CF_ZONE_ID}:"
+            echo "$zone_check" | jq -r '.errors[]?.message // .'
+            echo "Zone ID in use: ${CF_ZONE_ID}"
+            echo "Fix: Token needs Zone:Zone:Read AND Zone:DNS:Edit permissions scoped to raininggraces.com"
+            exit 1
+          fi
+          echo "✅ Zone confirmed: $(echo "$zone_check" | jq -r '.result.name')"
           # Exits non-zero if Cloudflare returns success:false.
           upsert_cname() {
             local record_name="$1"
