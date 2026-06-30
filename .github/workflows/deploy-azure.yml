@@ -93,6 +93,13 @@ jobs:
             echo "$zone_check" | jq -r '.errors[]?.message // .'
             echo "Zone ID in use: ${CF_ZONE_ID}"
             echo "Fix: Token needs Zone:Zone:Read AND Zone:DNS:Edit permissions scoped to raininggraces.com"
+            echo ""
+            echo "Listing zones accessible with this token to find the correct Zone ID:"
+            curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/zones?per_page=50" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              | jq -r '.result[] | "\(.name)  →  Zone ID: \(.id)"'
             exit 1
           fi
           echo "✅ Zone confirmed: $(echo "$zone_check" | jq -r '.result.name')"
