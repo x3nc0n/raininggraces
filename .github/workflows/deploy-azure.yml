@@ -117,30 +117,36 @@ jobs:
 
           register_domain() {
             local domain="$1"
-            # Check if already validated
+            # Get current status
             existing=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // empty')
+
             if [ "$existing" = "Ready" ]; then
               echo "  ✅ ${domain} already validated — skipping"
               return
             fi
 
+            if [ "$existing" = "Validating" ]; then
+              echo "  ⏳ ${domain} already validating — leaving it alone to complete"
+              return
+            fi
+
             echo "--- ${domain} ---"
 
-            # Always delete and recreate to get a fresh validation token
+            # Delete if in a non-progress state so we get a fresh token
             if [ -n "$existing" ]; then
-              echo "  Status=${existing} — deleting to reset validation state..."
+              echo "  Status=${existing} — deleting to get fresh entry..."
               curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
                 -H "Authorization: Bearer ${TOKEN}" > /dev/null
               sleep 8
             fi
 
-            # Initiate domain with dns-txt-token validation
+            # Create domain entry with dns-txt-token validation
             curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
               --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
 
-            # Poll for validation token (Azure may take up to 60s to issue it on fresh entry)
+            # Poll for validation token (Azure may take up to 60s to issue it)
             echo "  Waiting for Azure to issue validation token..."
             val_token=$(get_domain_token "$domain")
 
@@ -150,21 +156,10 @@ jobs:
             fi
             echo "  Validation token: ${val_token}"
 
-            # Upsert asuid TXT record in Cloudflare (only record we touch for validation)
+            # Upsert asuid TXT record in Cloudflare
             upsert_txt "asuid.${domain}" "$val_token"
-
-            echo "  Waiting 90s for TXT to propagate before re-triggering Azure validation..."
-            sleep 90
-
-            # Re-trigger validation
-            result=$(curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data '{"properties":{"validationMethod":"dns-txt-token"}}')
-            status=$(echo "$result" | jq -r '.properties.status // .error.message // empty')
-            echo "  Registration status: ${status:-pending/async}"
-            if [ "$status" = "Failed" ]; then
-              echo "  Azure response: $(echo "$result" | jq -c '.properties')"
-            fi
+            echo "  ✅ TXT record set — Azure will validate automatically. Polling..."
+            # No re-PUT: Azure validates on its own once TXT is set
           }
 
           register_domain "raininggraces.com"
