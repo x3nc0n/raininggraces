@@ -127,12 +127,12 @@ jobs:
 
             echo "--- ${domain} ---"
 
-            # If Failed, delete and recreate so Azure resets the validation token
-            if [ "$existing" = "Failed" ]; then
-              echo "  Status=Failed — deleting and recreating entry..."
+            # Always delete and recreate to get a fresh validation token
+            if [ -n "$existing" ]; then
+              echo "  Status=${existing} — deleting to reset validation state..."
               curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
                 -H "Authorization: Bearer ${TOKEN}" > /dev/null
-              sleep 5
+              sleep 8
             fi
 
             # Initiate domain with dns-txt-token validation
