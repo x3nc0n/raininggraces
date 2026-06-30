@@ -109,6 +109,9 @@ jobs:
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
               --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
 
+            # Give Azure a moment to create the pending entry
+            sleep 8
+
             # Get the validation token
             val_token=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.validationToken // empty')
@@ -122,14 +125,15 @@ jobs:
             # Create asuid TXT record in Cloudflare
             upsert_txt "asuid.${domain}" "$val_token"
 
-            echo "  Waiting 15s for TXT propagation..."
-            sleep 15
+            echo "  Waiting 60s for TXT propagation..."
+            sleep 60
 
             # Re-trigger validation by re-PUTting the domain entry
             result=$(curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
               --data '{"properties":{"validationMethod":"dns-txt-token"}}')
-            echo "  Registration triggered: $(echo "$result" | jq -r '.properties.status // .error.message // "pending"')"
+            status=$(echo "$result" | jq -r '.properties.status // .error.message // "pending"')
+            echo "  Registration status: ${status}"
           }
 
           register_domain "raininggraces.com"
