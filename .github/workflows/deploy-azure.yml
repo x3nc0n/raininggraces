@@ -60,58 +60,80 @@ jobs:
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          SWA_HOSTNAME: ${{ steps.swa.outputs.hostname }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         shell: bash
         run: |
           set -euo pipefail
 
-          # Helper: set proxy state on a CNAME record
-          set_proxy() {
-            local record_name="$1"
-            local proxied="$2"
+          SWA_NAME="swa-raininggraces-main"
+          RG="rg-raininggraces"
+          API="https://management.azure.com/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.Web/staticSites/${SWA_NAME}"
+          API_VER="?api-version=2023-01-01"
+          TOKEN=$(az account get-access-token --resource https://management.azure.com --query accessToken --output tsv)
+
+          upsert_txt() {
+            local name="$1"
+            local content="$2"
             response=$(curl -s -X GET \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${record_name}" \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=TXT&name=${name}" \
               -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
             record_id=$(echo "$response" | jq -r '.result[0].id // empty')
-            record_type=$(echo "$response" | jq -r '.result[0].type // "CNAME"')
-            record_content=$(echo "$response" | jq -r '.result[0].content // empty')
-            [ -z "$record_id" ] && echo "  (no record found for ${record_name}, skipping)" && return
-            curl -s -X PUT \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
-              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
-              --data "{\"type\":\"${record_type}\",\"name\":\"${record_name}\",\"content\":\"${record_content}\",\"proxied\":${proxied},\"ttl\":1}" \
-              | jq -r '"  proxy=\(.result.proxied) for \(.result.name)"'
+            payload=$(jq -n --arg name "$name" --arg content "$content" \
+              '{type:"TXT",name:$name,content:$content,ttl:60}')
+            if [ -n "$record_id" ]; then
+              curl -s -X PUT \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
+                --data "$payload" | jq -r 'if .success then "  ✅ Updated TXT \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
+            else
+              curl -s -X POST \
+                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
+                --data "$payload" | jq -r 'if .success then "  ✅ Created TXT \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
+            fi
           }
 
-          echo "=== Step 1: Disabling Cloudflare proxy so Azure can validate CNAMEs ==="
-          set_proxy "raininggraces.com"     "false"
-          set_proxy "www.raininggraces.com" "false"
-
-          echo "Waiting 20s for DNS propagation..."
-          sleep 20
-
-          echo "=== Step 2: Registering custom domains on Azure SWA ==="
-          for domain in raininggraces.com www.raininggraces.com; do
-            existing=$(az staticwebapp hostname list \
-              --name swa-raininggraces-main \
-              --resource-group rg-raininggraces \
-              --query "[?name=='${domain}'].name" \
-              --output tsv 2>/dev/null || true)
-            if [ -z "$existing" ]; then
-              echo "Registering ${domain}..."
-              az staticwebapp hostname set \
-                --name swa-raininggraces-main \
-                --resource-group rg-raininggraces \
-                --hostname "${domain}" || echo "  ⚠️ ${domain} registration failed (may need retry if cert not ready)"
-            else
-              echo "  ✅ ${domain} already registered"
+          register_domain() {
+            local domain="$1"
+            # Check if already registered and validated
+            existing=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // empty')
+            if [ "$existing" = "Ready" ]; then
+              echo "  ✅ ${domain} already validated"
+              return
             fi
-          done
 
-          echo "=== Step 3: Re-enabling Cloudflare proxy ==="
-          set_proxy "raininggraces.com"     "true"
-          set_proxy "www.raininggraces.com" "true"
-          echo "✅ Proxy re-enabled"
+            echo "--- ${domain} ---"
+            # Initiate domain with dns-txt-token validation
+            curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+              --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
+
+            # Get the validation token
+            val_token=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.validationToken // empty')
+
+            if [ -z "$val_token" ]; then
+              echo "  ⚠️ Could not get validation token for ${domain} — skipping"
+              return
+            fi
+            echo "  Validation token: ${val_token}"
+
+            # Create asuid TXT record in Cloudflare
+            upsert_txt "asuid.${domain}" "$val_token"
+
+            echo "  Waiting 15s for TXT propagation..."
+            sleep 15
+
+            # Re-trigger validation by re-PUTting the domain entry
+            result=$(curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+              --data '{"properties":{"validationMethod":"dns-txt-token"}}')
+            echo "  Registration triggered: $(echo "$result" | jq -r '.properties.status // .error.message // "pending"')"
+          }
+
+          register_domain "raininggraces.com"
+          register_domain "www.raininggraces.com"
 
       - name: Set Cloudflare SSL mode to Full
         env:
