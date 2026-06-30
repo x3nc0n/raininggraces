@@ -93,17 +93,59 @@ jobs:
             fi
           }
 
+          set_cf_proxy() {
+            local name="$1"
+            local proxied="$2"  # true or false
+            # Find the CNAME record for this name
+            response=$(curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${name}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+            record_id=$(echo "$response" | jq -r '.result[0].id // empty')
+            record_type=$(echo "$response" | jq -r '.result[0].type // empty')
+            record_content=$(echo "$response" | jq -r '.result[0].content // empty')
+            if [ -z "$record_id" ]; then
+              echo "  ⚠️ No DNS record found for ${name} to toggle proxy"
+              return
+            fi
+            payload=$(jq -n \
+              --arg type "$record_type" \
+              --arg name "$name" \
+              --arg content "$record_content" \
+              --argjson proxied "$proxied" \
+              --argjson ttl 1 \
+              '{type:$type, name:$name, content:$content, proxied:$proxied, ttl:$ttl}')
+            curl -s -X PUT \
+              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
+              --data "$payload" | jq -r 'if .success then "  ✅ Proxy=\(.result.proxied) for \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
+          }
+
           register_domain() {
             local domain="$1"
             # Check if already registered and validated
-            existing=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // empty')
+            existing_resp=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}")
+            existing=$(echo "$existing_resp" | jq -r '.properties.status // empty')
             if [ "$existing" = "Ready" ]; then
               echo "  ✅ ${domain} already validated"
               return
             fi
 
             echo "--- ${domain} ---"
+
+            # If domain is in Failed state, delete it first so Azure resets validation
+            if [ "$existing" = "Failed" ]; then
+              echo "  Deleting failed domain entry to reset validation..."
+              curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
+                -H "Authorization: Bearer ${TOKEN}" > /dev/null
+              sleep 5
+            fi
+
+            # Temporarily disable Cloudflare proxy so Azure can validate the CNAME
+            echo "  Disabling Cloudflare proxy for ${domain} (needed for Azure validation)..."
+            set_cf_proxy "$domain" false
+            sleep 10
+
             # Initiate domain with dns-txt-token validation
             curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
@@ -113,11 +155,15 @@ jobs:
             sleep 8
 
             # Get the validation token
-            val_token=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.validationToken // empty')
+            get_resp=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}")
+            val_token=$(echo "$get_resp" | jq -r '.properties.validationToken // empty')
 
             if [ -z "$val_token" ]; then
               echo "  ⚠️ Could not get validation token for ${domain} — skipping"
+              echo "  Azure response: $(echo "$get_resp" | jq -r '.properties // .error // .')"
+              # Re-enable proxy before returning
+              set_cf_proxy "$domain" true
               return
             fi
             echo "  Validation token: ${val_token}"
@@ -125,15 +171,22 @@ jobs:
             # Create asuid TXT record in Cloudflare
             upsert_txt "asuid.${domain}" "$val_token"
 
-            echo "  Waiting 60s for TXT propagation..."
-            sleep 60
+            echo "  Waiting 90s for TXT propagation..."
+            sleep 90
 
             # Re-trigger validation by re-PUTting the domain entry
             result=$(curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
               --data '{"properties":{"validationMethod":"dns-txt-token"}}')
-            status=$(echo "$result" | jq -r '.properties.status // .error.message // "pending"')
-            echo "  Registration status: ${status}"
+            status=$(echo "$result" | jq -r '.properties.status // .error.message // empty')
+            echo "  Registration status: ${status:-pending/async}"
+            if [ "$status" = "Failed" ]; then
+              echo "  Full response: $(echo "$result" | jq -c '.properties // .error // .')"
+            fi
+
+            # Re-enable Cloudflare proxy
+            echo "  Re-enabling Cloudflare proxy for ${domain}..."
+            set_cf_proxy "$domain" true
           }
 
           register_domain "raininggraces.com"
