@@ -142,6 +142,13 @@ jobs:
 
           register_domain() {
             local domain="$1"
+            # Use CNAME validation for www (CNAME directly visible when proxy is off),
+            # TXT token for apex (Cloudflare flattens apex to A records, no CNAME to delegate)
+            local method="dns-txt-token"
+            if [[ "$domain" == www.* ]]; then
+              method="cname-delegation"
+            fi
+
             existing=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // empty')
 
@@ -150,84 +157,60 @@ jobs:
               return
             fi
 
-            echo "--- ${domain} ---"
+            echo "--- ${domain} (method: ${method}, was: ${existing:-none}) ---"
 
-            local need_fresh=false
-            if [ -z "$existing" ] || [ "$existing" = "Failed" ]; then
-              need_fresh=true
+            # Always delete and recreate to clear any stuck Validating state
+            if [ -n "$existing" ]; then
+              echo "  Deleting existing entry (status=${existing})..."
+              curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
+                -H "Authorization: Bearer ${TOKEN}" > /dev/null
+              sleep 10
             fi
 
-            if [ "$need_fresh" = "true" ]; then
-              if [ -n "$existing" ]; then
-                echo "  Status=${existing} — deleting to reset..."
-                curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
-                  -H "Authorization: Bearer ${TOKEN}" > /dev/null
-                sleep 8
-              fi
-
-              # Temporarily unproxy so Azure can see CNAME resolves to SWA
-              echo "  Disabling Cloudflare proxy on ${domain}..."
-              set_cf_proxy "$domain" false
-              sleep 30
-
-              # Create domain entry with dns-txt-token validation
-              curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
-                -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-                --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
-            else
-              echo "  Status=${existing} — keeping existing entry, just refreshing DNS records and re-validating"
-              # Still unproxy for the validation window
-              echo "  Disabling Cloudflare proxy on ${domain}..."
-              set_cf_proxy "$domain" false
-              sleep 30
-            fi
-
-            # Get validation token
-            echo "  Waiting for Azure to issue validation token..."
-            val_token=$(get_domain_token "$domain")
-            if [ -z "$val_token" ]; then
-              echo "  ❌ Timed out waiting for validation token"
-              set_cf_proxy "$domain" true
-              return 1
-            fi
-            echo "  Validation token: ${val_token}"
-
-            # Set asuid TXT record (used by Azure API dns-txt-token method)
-            upsert_txt "asuid.${domain}" "$val_token"
-
-            # For apex domain, also set TXT at root @ (as shown in Azure portal docs)
-            if [[ "$domain" != www.* ]] && [[ "$domain" != *.*.* ]]; then
-              echo "  Also setting TXT at root @ (portal-style apex validation)..."
-              upsert_txt "${domain}" "$val_token"
-            fi
-
-            echo "  Waiting 30s for TXT propagation..."
+            # Unproxy so Azure can see the raw CNAME or do TXT lookup unhindered
+            echo "  Disabling Cloudflare proxy on ${domain}..."
+            set_cf_proxy "$domain" false
             sleep 30
 
-            # Trigger validation
-            echo "  Triggering validation..."
-            val_body=$(curl -s -X POST \
+            # Create domain entry with chosen validation method
+            curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+              --data "{\"properties\":{\"validationMethod\":\"${method}\"}}" > /dev/null
+
+            if [ "$method" = "dns-txt-token" ]; then
+              # Get Azure-issued token and publish TXT records
+              echo "  Waiting for validation token..."
+              val_token=$(get_domain_token "$domain")
+              if [ -z "$val_token" ]; then
+                echo "  ❌ Timed out waiting for token"
+                set_cf_proxy "$domain" true; return 1
+              fi
+              echo "  Token: ${val_token}"
+              upsert_txt "asuid.${domain}" "$val_token"
+              upsert_txt "${domain}" "$val_token"  # root @ — required for apex per Azure portal docs
+              echo "  Waiting 60s for TXT propagation..."
+              sleep 60
+            fi
+
+            # Trigger validation check
+            echo "  Triggering /validate..."
+            val_http=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
               "${API}/customDomains/${domain}/validate${API_VER}" \
               -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data '{"properties":{"validationMethod":"dns-txt-token"}}' \
-              -w "\nHTTP:%{http_code}")
-            val_http=$(echo "$val_body" | tail -1 | cut -d: -f2)
-            val_resp=$(echo "$val_body" | head -1)
-            echo "  /validate HTTP ${val_http}: ${val_resp:-OK}"
+              --data "{\"properties\":{\"validationMethod\":\"${method}\"}}")
+            echo "  /validate HTTP ${val_http}"
 
-            # Dump state
             sleep 5
             domain_state=$(curl -s "${API}/customDomains/${domain}${API_VER}" -H "Authorization: Bearer ${TOKEN}")
             echo "  State: $(echo "$domain_state" | jq -c '.properties | {status,errorMessage}')"
           }
-
           register_domain "raininggraces.com"
           register_domain "www.raininggraces.com"
 
           # Poll for Ready status (up to 10 min) — re-enable proxy as each domain validates
           echo ""
           echo "Polling Azure for validation status (proxy will be re-enabled when each domain is Ready)..."
-          deadline=$(( $(date +%s) + 600 ))
+          deadline=$(( $(date +%s) + 1200 ))  # 20-min poll
           apex_proxied=false
           www_proxied=false
           while true; do
