@@ -170,6 +170,27 @@ jobs:
           register_domain "raininggraces.com"
           register_domain "www.raininggraces.com"
 
+          # Poll for final Ready status (Azure validates async after we re-PUT)
+          echo ""
+          echo "Polling Azure for domain validation status (up to 5 min)..."
+          deadline=$(( $(date +%s) + 300 ))
+          while true; do
+            apex_st=$(curl -s "${API}/customDomains/raininggraces.com${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // "unknown"')
+            www_st=$(curl -s "${API}/customDomains/www.raininggraces.com${API_VER}" \
+              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // "unknown"')
+            echo "  $(date -u '+%H:%M:%S') — raininggraces.com: ${apex_st} | www: ${www_st}"
+            if [ "$apex_st" = "Ready" ] && [ "$www_st" = "Ready" ]; then
+              echo "  ✅ Both domains validated!"
+              break
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "  ⏱ Timed out waiting for Ready status. Azure may still be validating."
+              break
+            fi
+            sleep 30
+          done
+
       - name: Set Cloudflare SSL mode to Full
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
