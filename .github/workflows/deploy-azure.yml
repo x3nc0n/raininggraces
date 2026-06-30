@@ -152,23 +152,35 @@ jobs:
 
             echo "--- ${domain} ---"
 
-            # Delete stuck/failed entry so Azure issues a fresh token
-            if [ -n "$existing" ]; then
-              echo "  Status=${existing} — deleting to reset..."
-              curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
-                -H "Authorization: Bearer ${TOKEN}" > /dev/null
-              sleep 8
+            local need_fresh=false
+            if [ -z "$existing" ] || [ "$existing" = "Failed" ]; then
+              need_fresh=true
             fi
 
-            # Temporarily unproxy so Azure can see the CNAME resolves to SWA
-            echo "  Disabling Cloudflare proxy on ${domain} for validation window..."
-            set_cf_proxy "$domain" false
-            sleep 30  # allow DNS propagation
+            if [ "$need_fresh" = "true" ]; then
+              if [ -n "$existing" ]; then
+                echo "  Status=${existing} — deleting to reset..."
+                curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
+                  -H "Authorization: Bearer ${TOKEN}" > /dev/null
+                sleep 8
+              fi
 
-            # Create domain entry with dns-txt-token validation
-            curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
+              # Temporarily unproxy so Azure can see CNAME resolves to SWA
+              echo "  Disabling Cloudflare proxy on ${domain}..."
+              set_cf_proxy "$domain" false
+              sleep 30
+
+              # Create domain entry with dns-txt-token validation
+              curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
+                -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
+                --data '{"properties":{"validationMethod":"dns-txt-token"}}' > /dev/null
+            else
+              echo "  Status=${existing} — keeping existing entry, just refreshing DNS records and re-validating"
+              # Still unproxy for the validation window
+              echo "  Disabling Cloudflare proxy on ${domain}..."
+              set_cf_proxy "$domain" false
+              sleep 30
+            fi
 
             # Get validation token
             echo "  Waiting for Azure to issue validation token..."
@@ -180,13 +192,19 @@ jobs:
             fi
             echo "  Validation token: ${val_token}"
 
-            # Set asuid TXT record
+            # Set asuid TXT record (used by Azure API dns-txt-token method)
             upsert_txt "asuid.${domain}" "$val_token"
+
+            # For apex domain, also set TXT at root @ (as shown in Azure portal docs)
+            if [[ "$domain" != www.* ]] && [[ "$domain" != *.*.* ]]; then
+              echo "  Also setting TXT at root @ (portal-style apex validation)..."
+              upsert_txt "${domain}" "$val_token"
+            fi
 
             echo "  Waiting 30s for TXT propagation..."
             sleep 30
 
-            # Trigger validation via the dedicated /validate endpoint (not re-PUT)
+            # Trigger validation
             echo "  Triggering validation..."
             val_body=$(curl -s -X POST \
               "${API}/customDomains/${domain}/validate${API_VER}" \
@@ -197,11 +215,10 @@ jobs:
             val_resp=$(echo "$val_body" | head -1)
             echo "  /validate HTTP ${val_http}: ${val_resp:-OK}"
 
-            # Also dump full domain state immediately after
+            # Dump state
             sleep 5
-            domain_state=$(curl -s "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}")
-            echo "  Post-validate state: $(echo "$domain_state" | jq -c '.properties | {status,validationToken,errorMessage}')"
+            domain_state=$(curl -s "${API}/customDomains/${domain}${API_VER}" -H "Authorization: Bearer ${TOKEN}")
+            echo "  State: $(echo "$domain_state" | jq -c '.properties | {status,errorMessage}')"
           }
 
           register_domain "raininggraces.com"
