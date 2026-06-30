@@ -56,6 +56,47 @@ jobs:
           echo "hostname=$hostname" >> "$GITHUB_OUTPUT"
           echo "SWA hostname: $hostname"
 
+      - name: Register custom domains on Azure SWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          for domain in raininggraces.com www.raininggraces.com; do
+            existing=$(az staticwebapp hostname list \
+              --name swa-raininggraces-main \
+              --resource-group rg-raininggraces \
+              --query "[?name=='${domain}'].name" \
+              --output tsv 2>/dev/null || true)
+            if [ -z "$existing" ]; then
+              echo "Adding custom domain: ${domain}"
+              az staticwebapp hostname set \
+                --name swa-raininggraces-main \
+                --resource-group rg-raininggraces \
+                --hostname "${domain}" \
+                --no-wait
+              echo "  ✅ Registered ${domain} (validation may take a few minutes)"
+            else
+              echo "  ✅ ${domain} already registered"
+            fi
+          done
+
+      - name: Set Cloudflare SSL mode to Full
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          result=$(curl -s -X PATCH \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/settings/ssl" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"value":"full"}')
+          if [ "$(echo "$result" | jq -r '.success')" = "true" ]; then
+            echo "✅ Cloudflare SSL mode set to Full"
+          else
+            echo "⚠️ SSL mode update: $(echo "$result" | jq -r '.errors[]?.message // .')"
+          fi
+
       - name: Update Cloudflare DNS → Azure
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
