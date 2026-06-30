@@ -65,7 +65,25 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Verify token works before attempting any writes.
+          echo "Verifying Cloudflare token..."
+          verify=$(curl -s -X GET \
+            "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json")
+          if [ "$(echo "$verify" | jq -r '.success')" != "true" ]; then
+            echo "❌ Cloudflare token verification failed:"
+            echo "$verify" | jq -r '.errors[]?.message // .messages[]?.text // .'
+            echo ""
+            echo "Fix: In Cloudflare dashboard, create an API token using the"
+            echo "'Edit zone DNS' template, scoped to zone raininggraces.com."
+            echo "Then update the CLOUDFLARE_API_TOKEN repository secret."
+            exit 1
+          fi
+          echo "✅ Token verified: $(echo "$verify" | jq -r '.result.status')"
+
           # Upsert a CNAME record: update if it exists, create if it doesn't.
+          # Exits non-zero if Cloudflare returns success:false.
           upsert_cname() {
             local record_name="$1"
             local content="$2"
@@ -87,19 +105,26 @@ jobs:
 
             if [ -n "$record_id" ]; then
               echo "Updating existing CNAME ${record_name} → ${content}"
-              curl -s -X PUT \
+              result=$(curl -s -X PUT \
                 "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
                 -H "Authorization: Bearer ${CF_API_TOKEN}" \
                 -H "Content-Type: application/json" \
-                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+                --data "$payload")
             else
               echo "Creating new CNAME ${record_name} → ${content}"
-              curl -s -X POST \
+              result=$(curl -s -X POST \
                 "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
                 -H "Authorization: Bearer ${CF_API_TOKEN}" \
                 -H "Content-Type: application/json" \
-                --data "$payload" | jq -r '"  status: \(.success) | \(.errors // [] | map(.message) | join(", "))"'
+                --data "$payload")
             fi
+
+            if [ "$(echo "$result" | jq -r '.success')" != "true" ]; then
+              echo "❌ Failed to upsert ${record_name}:"
+              echo "$result" | jq -r '.errors[]?.message // .'
+              exit 1
+            fi
+            echo "  ✅ ${record_name} → ${content}"
           }
 
           # Apex domain — Cloudflare flattens CNAME at root automatically.
