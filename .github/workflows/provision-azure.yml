@@ -6,7 +6,7 @@ on:
       resource_group_name:
         description: Resource group to create or update
         required: true
-        default: rg-raininggraces
+        default: rg-raininggraces-centralus
       static_web_app_name:
         description: Static Web App name
         required: true

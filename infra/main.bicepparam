@@ -1,10 +1,10 @@
 using './main.bicep'
 
-param deploymentLocation = 'southcentralus'
-param location = 'southcentralus'
+param deploymentLocation = 'centralus'
+param location = 'centralus'
 param subscriptionId = '25ce2c45-140d-4d23-b6f6-87bb708d08af'
 param tenantId = '3b14ce70-8bea-4d11-9e2c-6b4a04c8010d'
-param resourceGroupName = 'rg-raininggraces'
+param resourceGroupName = 'rg-raininggraces-centralus'
 param staticWebAppName = 'swa-raininggraces-main'
 param staticWebAppSkuName = 'Free'
 param staticWebAppRepositoryUrl = 'https://github.com/x3nc0n/raininggraces'
