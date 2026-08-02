@@ -24,14 +24,36 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Azure login with OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Request GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "GitHub OIDC token request context is not available." >&2
+            exit 1
+          fi
 
-      - name: Deploy Azure infrastructure
+          token="$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" -H "Accept: application/json" "${ACTIONS_ID_TOKEN_REQUEST_URL}" | python3 -c 'import sys, json; print(json.load(sys.stdin)["value"])')"
+          if [ -z "$token" ]; then
+            echo "Failed to acquire a GitHub OIDC token." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$token"
+          echo "github_oidc_token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login with GitHub Actions UAMI OIDC
+        shell: bash
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}" \
+            --federated-token "${{ steps.oidc.outputs.github_oidc_token }}" \
+            --allow-no-subscriptions
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          az account show --query '{subscription:id, tenant:tenantId}' -o json
+
+      - name: Deploy Azure infrastructure with UAMI/OIDC
         id: deploy
         shell: bash
         run: |
@@ -58,6 +80,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update Cloudflare DNS → Azure
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ZONE_ID != '' }}
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -65,6 +88,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if [ -z "${SWA_HOSTNAME:-}" ]; then
+            echo "Static Web App hostname was not produced; skipping Cloudflare DNS update." >&2
+            exit 0
+          fi
 
           echo "Verifying Cloudflare token..."
           verify=$(curl -s -X GET \
@@ -129,11 +157,11 @@ jobs:
 
           echo "✅ DNS updated: raininggraces.com + www → $SWA_HOSTNAME"
 
-      - name: Post provisioning summary
+      - name: Post UAMI/OIDC provisioning summary
         shell: bash
         run: |
           cat <<EOF >> "$GITHUB_STEP_SUMMARY"
-          ## Azure provisioning complete
+          ## Azure provisioning complete through GitHub Actions UAMI OIDC
 
           - Resource group: \`${{ inputs.resource_group_name }}\`
           - Static Web App: \`${{ inputs.static_web_app_name }}\`
@@ -148,7 +176,8 @@ jobs:
           ### Required follow-up
 
           1. Set repository secret \`AZURE_STATIC_WEB_APPS_API_TOKEN\` using the deployment token from Azure Static Web Apps.
-          2. Keep using OIDC secrets \`AZURE_CLIENT_ID\`, \`AZURE_TENANT_ID\`, and \`AZURE_SUBSCRIPTION_ID\` for this provisioning workflow.
+          2. Keep the GitHub Actions UAMI OIDC repository secrets \`AZURE_CLIENT_ID\`, \`AZURE_TENANT_ID\`, and \`AZURE_SUBSCRIPTION_ID\` populated for this workflow.
+          3. If you want the DNS helper to run, set repository secrets \`CLOUDFLARE_API_TOKEN\` and \`CLOUDFLARE_ZONE_ID\` (optionally a repo variable \`CLOUDFLARE_RECORD_NAME\`).
 
           ### Optional repo-connection bootstrap
 

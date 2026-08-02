@@ -230,6 +230,22 @@ The site is built and deployed automatically via GitHub Actions (`.github/workfl
 
 To manually trigger a build, push any commit to `master`.
 
+### Bootstrap GitHub Actions UAMI
+
+To provision the Azure deployment identity for GitHub Actions OIDC, run the bootstrap script from an Azure CLI session authenticated as `JohnSpaid@spaid.family` and then store the returned values as repository secrets:
+
+```bash
+bash scripts/bootstrap-github-actions-uami.sh \
+  --subscription-id 25ce2c45-140d-4d23-b6f6-87bb708d08af \
+  --tenant-id 3b14ce70-8bea-4d11-9e2c-6b4a04c8010d \
+  --resource-group-name rg-raininggraces \
+  --identity-name id-raininggraces-github-actions \
+  --federated-credential-name github-actions-oidc-master \
+  --repository x3nc0n/raininggraces
+```
+
+Add the printed values to GitHub repository secrets named `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
+
 ---
 
 ## Testing
