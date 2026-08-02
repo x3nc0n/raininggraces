@@ -33,8 +33,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: _site
-          output_location: ""
+          app_location: /
+          output_location: _site
           skip_app_build: true
 
       # OIDC login is needed only for the hostname lookup below.
@@ -77,205 +77,74 @@ jobs:
             --output tsv)
           echo "hostname=$hostname" >> "$GITHUB_OUTPUT"
           echo "SWA hostname: $hostname"
-
-      - name: Note custom-domain limitation
+      - name: Register custom domains
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         shell: bash
         run: |
-          echo "Skipping Azure custom-domain registration for raininggraces.com and www.raininggraces.com."
-          echo "Cloudflare DNS is already configured correctly, and Azure is rejecting the registration due to CAA policy constraints."
-          echo "The site deployment itself will continue normally."
-          exit 0
-
           set -euo pipefail
 
           SWA_NAME="swa-raininggraces-main"
           RG="rg-raininggraces-centralus"
-          API="https://management.azure.com/subscriptions/${AZURE_SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.Web/staticSites/${SWA_NAME}"
-          API_VER="?api-version=2023-01-01"
-          TOKEN=$(az account get-access-token --resource https://management.azure.com --query accessToken --output tsv)
 
-          # Upsert a TXT record in Cloudflare
-          upsert_txt() {
+          default_hostname=$(az staticwebapp show --name "$SWA_NAME" --resource-group "$RG" --query defaultHostname --output tsv)
+          echo "SWA default hostname: $default_hostname"
+
+          upsert_cf_txt() {
             local name="$1"
             local content="$2"
-            response=$(curl -s -X GET \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=TXT&name=${name}" \
-              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+            response=$(curl -fsS -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=TXT&name=${name}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
             record_id=$(echo "$response" | jq -r '.result[0].id // empty')
-            payload=$(jq -n --arg name "$name" --arg content "$content" \
-              '{type:"TXT",name:$name,content:$content,ttl:60}')
+            payload=$(jq -n --arg name "$name" --arg content "$content" '{type:"TXT",name:$name,content:$content,ttl:60,proxied:false}')
             if [ -n "$record_id" ]; then
-              curl -s -X PUT \
-                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
-                -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
-                --data "$payload" | jq -r 'if .success then "  ✅ Updated TXT \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
+              curl -fsS -X PUT "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data "$payload" >/dev/null
             else
-              curl -s -X POST \
-                "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-                -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
-                --data "$payload" | jq -r 'if .success then "  ✅ Created TXT \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
+              curl -fsS -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data "$payload" >/dev/null
             fi
           }
 
-          # Set Cloudflare proxy state on a CNAME record (filters by type=CNAME to avoid CAA records)
-          set_cf_proxy() {
+          upsert_cf_cname() {
             local name="$1"
-            local proxied="$2"  # "true" or "false"
-            response=$(curl -s -X GET \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&name=${name}" \
-              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+            local content="$2"
+            response=$(curl -fsS -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CNAME&name=${name}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
             record_id=$(echo "$response" | jq -r '.result[0].id // empty')
-            record_content=$(echo "$response" | jq -r '.result[0].content // empty')
-            if [ -z "$record_id" ]; then
-              echo "  ⚠️ No CNAME found for ${name} to set proxy=${proxied}"
-              return
+            payload=$(jq -n --arg name "$name" --arg content "$content" '{type:"CNAME",name:$name,content:$content,ttl:1,proxied:false}')
+            if [ -n "$record_id" ]; then
+              curl -fsS -X PUT "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data "$payload" >/dev/null
+            else
+              curl -fsS -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data "$payload" >/dev/null
             fi
-            payload=$(jq -n \
-              --arg name "$name" \
-              --arg content "$record_content" \
-              --argjson proxied "$proxied" \
-              '{type:"CNAME", name:$name, content:$content, proxied:$proxied, ttl:1}')
-            curl -s -X PUT \
-              "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records/${record_id}" \
-              -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" \
-              --data "$payload" | jq -r 'if .success then "  ✅ proxy=\(.result.proxied) for \(.result.name)" else "  ❌ \(.errors[]?.message)" end'
           }
 
-          # Poll Azure until validation token is available (up to 60s)
-          get_domain_token() {
-            local domain="$1"
-            local deadline=$(( $(date +%s) + 20 ))
-            while true; do
-              resp=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
-                -H "Authorization: Bearer ${TOKEN}")
-              status=$(echo "$resp" | jq -r '.properties.status // empty')
-              token=$(echo "$resp" | jq -r '.properties.validationToken // empty')
-              if [ -n "$token" ]; then
-                echo "$token"
-                return 0
-              fi
-              if [ "$(date +%s)" -ge "$deadline" ]; then
-                echo ""
-                return 1
-              fi
-              echo "  (status: ${status:-unknown}, waiting for token...)" >&2
-              sleep 3
-            done
-          }
-
-          register_domain() {
-            local domain="$1"
-            # Use CNAME validation for www (CNAME directly visible when proxy is off),
-            # TXT token for apex (Cloudflare flattens apex to A records, no CNAME to delegate)
-            local method="dns-txt-token"
-            if [[ "$domain" == www.* ]]; then
-              method="cname-delegation"
-            fi
-
-            existing=$(curl -s -X GET "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // empty')
-
-            if [ "$existing" = "Ready" ]; then
-              echo "  ✅ ${domain} already validated — skipping"
-              return
-            fi
-
-            echo "--- ${domain} (method: ${method}, was: ${existing:-none}) ---"
-
-            # Always delete and recreate to clear any stuck Validating state
+          upsert_cf_caa() {
+            local name="$1"
+            local issuer="$2"
+            response=$(curl -fsS -X GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?type=CAA&name=${name}" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+            existing=$(echo "$response" | jq -r --arg issuer "$issuer" '.result[] | select(.data.tag == "issue" and .data.value == $issuer) | .id' | head -n 1)
             if [ -n "$existing" ]; then
-              echo "  Deleting existing entry (status=${existing})..."
-              curl -s -X DELETE "${API}/customDomains/${domain}${API_VER}" \
-                -H "Authorization: Bearer ${TOKEN}" > /dev/null
-              sleep 10
+              return 0
             fi
-
-            # Unproxy so Azure can see the raw CNAME or do TXT lookup unhindered
-            echo "  Disabling Cloudflare proxy on ${domain}..."
-            set_cf_proxy "$domain" false
-            sleep 30
-
-            # Create domain entry with chosen validation method
-            curl -s -X PUT "${API}/customDomains/${domain}${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data "{\"properties\":{\"validationMethod\":\"${method}\"}}" > /dev/null
-
-            if [ "$method" = "dns-txt-token" ]; then
-              # Get Azure-issued token and publish TXT records
-              echo "  Waiting for validation token..."
-              val_token=$(get_domain_token "$domain") || true
-              if [ -z "$val_token" ]; then
-                echo "  ⚠️ Timed out waiting for token; continuing without blocking deployment"
-                set_cf_proxy "$domain" true
-                return 0
-              fi
-              echo "  Token: ${val_token}"
-              upsert_txt "asuid.${domain}" "$val_token"
-              upsert_txt "${domain}" "$val_token"  # root @ — required for apex per Azure portal docs
-              echo "  Waiting 60s for TXT propagation..."
-              sleep 60
-            fi
-
-            # Trigger validation check
-            echo "  Triggering /validate..."
-            val_http=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-              "${API}/customDomains/${domain}/validate${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" \
-              --data "{\"properties\":{\"validationMethod\":\"${method}\"}}")
-            echo "  /validate HTTP ${val_http}"
-
-            sleep 5
-            domain_state=$(curl -s "${API}/customDomains/${domain}${API_VER}" -H "Authorization: Bearer ${TOKEN}")
-            echo "  State: $(echo "$domain_state" | jq -c '.properties | {status,errorMessage}')"
+            payload=$(jq -n --arg name "$name" --arg issuer "$issuer" '{type:"CAA",name:$name,ttl:1,proxied:false,data:{flags:0,tag:"issue",value:$issuer}}')
+            curl -fsS -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" --data "$payload" >/dev/null
           }
-          register_domain "raininggraces.com"
-          register_domain "www.raininggraces.com"
 
-          # Poll for Ready status (up to 10 min) — re-enable proxy as each domain validates
-          echo ""
-          echo "Polling Azure for validation status (proxy will be re-enabled when each domain is Ready)..."
-          deadline=$(( $(date +%s) + 1200 ))  # 20-min poll
-          apex_proxied=false
-          www_proxied=false
-          while true; do
-            apex_st=$(curl -s "${API}/customDomains/raininggraces.com${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // "unknown"')
-            www_st=$(curl -s "${API}/customDomains/www.raininggraces.com${API_VER}" \
-              -H "Authorization: Bearer ${TOKEN}" | jq -r '.properties.status // "unknown"')
-            echo "  $(date -u '+%H:%M:%S') — raininggraces.com: ${apex_st} | www: ${www_st}"
-
-            if [ "$apex_st" = "Ready" ] && [ "$apex_proxied" = "false" ]; then
-              echo "  raininggraces.com validated — re-enabling proxy..."
-              set_cf_proxy "raininggraces.com" true
-              apex_proxied=true
-            fi
-            if [ "$www_st" = "Ready" ] && [ "$www_proxied" = "false" ]; then
-              echo "  www.raininggraces.com validated — re-enabling proxy..."
-              set_cf_proxy "www.raininggraces.com" true
-              www_proxied=true
-            fi
-            if [ "$apex_st" = "Ready" ] && [ "$www_st" = "Ready" ]; then
-              echo "  ✅ Both domains validated! Proxy restored."
-              break
-            fi
-            if [ "$apex_st" = "Failed" ] || [ "$www_st" = "Failed" ]; then
-              echo "  ⚠️ Validation failed — re-enabling proxy and continuing deployment"
-              set_cf_proxy "raininggraces.com" true
-              set_cf_proxy "www.raininggraces.com" true
-              break
-            fi
-            if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "  ⏱ Timed out — re-enabling proxy and continuing deployment"
-              set_cf_proxy "raininggraces.com" true
-              set_cf_proxy "www.raininggraces.com" true
-              break
-            fi
-            sleep 30
+          for domain in "raininggraces.com" "www.raininggraces.com"; do
+            upsert_cf_caa "$domain" "letsencrypt.org"
+            upsert_cf_caa "$domain" "digicert.com"
           done
+
+          upsert_cf_cname "www.raininggraces.com" "$default_hostname"
+
+          az staticwebapp hostname set --name "$SWA_NAME" --resource-group "$RG" --hostname "www.raininggraces.com" --validation-method "cname-delegation" --output none
+
+          validation_token=$(az staticwebapp hostname show --name "$SWA_NAME" --resource-group "$RG" --hostname "raininggraces.com" --query validationToken --output tsv 2>/dev/null || true)
+          if [ -n "$validation_token" ]; then
+            upsert_cf_txt "raininggraces.com" "$validation_token"
+            upsert_cf_txt "asuid.raininggraces.com" "$validation_token"
+          fi
+
+          az staticwebapp hostname set --name "$SWA_NAME" --resource-group "$RG" --hostname "raininggraces.com" --validation-method "dns-txt-token" --output none
 
       - name: Set Cloudflare SSL mode to Full
         env:
