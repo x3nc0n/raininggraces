@@ -34,7 +34,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: /
-          output_location: _site
+          app_artifact_location: _site
           skip_app_build: true
 
       # OIDC login is needed only for the hostname lookup below.
