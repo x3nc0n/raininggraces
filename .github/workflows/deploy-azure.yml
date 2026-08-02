@@ -87,6 +87,7 @@ jobs:
           echo "hostname=$hostname" >> "$GITHUB_OUTPUT"
           echo "SWA hostname: $hostname"
       - name: Register custom domains
+        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -156,6 +157,7 @@ jobs:
           az staticwebapp hostname set --name "$SWA_NAME" --resource-group "$RG" --hostname "raininggraces.com" --validation-method "dns-txt-token" --output none
 
       - name: Set Cloudflare SSL mode to Full
+        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -174,6 +176,7 @@ jobs:
           fi
 
       - name: Update Cloudflare DNS → Azure
+        continue-on-error: true
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
