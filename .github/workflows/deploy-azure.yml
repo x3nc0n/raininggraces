@@ -27,17 +27,7 @@ jobs:
       - name: Build Jekyll site
         run: bundle exec jekyll build --future
 
-      - name: Deploy to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: upload
-          app_location: /
-          app_artifact_location: _site
-          skip_app_build: true
-
-      # OIDC login is needed only for the hostname lookup below.
+      # OIDC login is needed for Azure deployment and hostname lookup below.
       - name: Request GitHub OIDC token
         id: oidc
         shell: bash
@@ -66,6 +56,25 @@ jobs:
             --allow-no-subscriptions
 
           az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
+      - name: Deploy built site to Azure Static Web Apps
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_token=$(az staticwebapp secrets list \
+            --name swa-raininggraces-main \
+            --resource-group rg-raininggraces-centralus \
+            --query properties.apiKey \
+            --output tsv)
+
+          npx -y @azure/static-web-apps-cli deploy _site \
+            --app-location . \
+            --deployment-token "$deployment_token" \
+            --app-name swa-raininggraces-main \
+            --resource-group rg-raininggraces-centralus \
+            --subscription-id "${{ secrets.AZURE_SUBSCRIPTION_ID }}" \
+            --tenant-id "${{ secrets.AZURE_TENANT_ID }}" \
+            --env production
 
       - name: Get SWA default hostname
         id: swa
