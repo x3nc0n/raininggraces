@@ -38,12 +38,34 @@ jobs:
           skip_app_build: true
 
       # OIDC login is needed only for the hostname lookup below.
+      - name: Request GitHub OIDC token
+        id: oidc
+        shell: bash
+        run: |
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "GitHub OIDC token request context is not available." >&2
+            exit 1
+          fi
+
+          token="$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" -H "Accept: application/json" "${ACTIONS_ID_TOKEN_REQUEST_URL}" | python3 -c 'import sys, json; print(json.load(sys.stdin)["value"])')"
+          if [ -z "$token" ]; then
+            echo "Failed to acquire a GitHub OIDC token." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$token"
+          echo "github_oidc_token=$token" >> "$GITHUB_OUTPUT"
+
       - name: Azure login (OIDC)
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        shell: bash
+        run: |
+          az login --service-principal \
+            --username "${{ secrets.AZURE_CLIENT_ID }}" \
+            --tenant "${{ secrets.AZURE_TENANT_ID }}" \
+            --federated-token "${{ steps.oidc.outputs.github_oidc_token }}" \
+            --allow-no-subscriptions
+
+          az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
 
       - name: Get SWA default hostname
         id: swa
