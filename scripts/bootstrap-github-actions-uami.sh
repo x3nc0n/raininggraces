@@ -112,7 +112,8 @@ done
 
 issuer="https://token.actions.githubusercontent.com"
 subject="repo:${repository}:ref:refs/heads/master"
-audiences="api://AzureADTokenExchange"
+repository_owner="${repository%%/*}"
+audiences="https://github.com/${repository_owner}"
 
 if "${az_cmd[@]}" identity federated-credential show --resource-group "$resource_group_name" --identity-name "$identity_name" --name "$federated_credential_name" >/dev/null 2>&1; then
   "${az_cmd[@]}" identity federated-credential update \
