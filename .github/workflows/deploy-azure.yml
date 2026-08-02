@@ -202,10 +202,11 @@ jobs:
             if [ "$method" = "dns-txt-token" ]; then
               # Get Azure-issued token and publish TXT records
               echo "  Waiting for validation token..."
-              val_token=$(get_domain_token "$domain")
+              val_token=$(get_domain_token "$domain") || true
               if [ -z "$val_token" ]; then
-                echo "  ❌ Timed out waiting for token"
-                set_cf_proxy "$domain" true; return 1
+                echo "  ⚠️ Timed out waiting for token; continuing without blocking deployment"
+                set_cf_proxy "$domain" true
+                return 0
               fi
               echo "  Token: ${val_token}"
               upsert_txt "asuid.${domain}" "$val_token"
@@ -257,13 +258,13 @@ jobs:
               break
             fi
             if [ "$apex_st" = "Failed" ] || [ "$www_st" = "Failed" ]; then
-              echo "  ❌ Validation failed — re-enabling proxy and exiting"
+              echo "  ⚠️ Validation failed — re-enabling proxy and continuing deployment"
               set_cf_proxy "raininggraces.com" true
               set_cf_proxy "www.raininggraces.com" true
-              exit 1
+              break
             fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "  ⏱ Timed out — re-enabling proxy regardless"
+              echo "  ⏱ Timed out — re-enabling proxy and continuing deployment"
               set_cf_proxy "raininggraces.com" true
               set_cf_proxy "www.raininggraces.com" true
               break
